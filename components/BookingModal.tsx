@@ -20,14 +20,14 @@ const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose }) => {
             onClick={onClose}
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
           />
-          
+
           <motion.div
             initial={{ scale: 0.9, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.9, opacity: 0, y: 20 }}
             className="relative bg-white w-full max-w-lg rounded-[2rem] shadow-2xl p-6 md:p-8 overflow-hidden"
           >
-            <button 
+            <button
               onClick={onClose}
               className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-full transition-colors"
             >
@@ -40,11 +40,11 @@ const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose }) => {
             </div>
 
             <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-              {['18:00', '19:00', '20:00', '21:00', '22:00', '23:00', '24:00'].map((time, idx) => (
+              {['18:00', '19:00', '20:00', '21:00', '22:00', '23:00'].map((time, idx) => (
                 <div key={time} className="flex items-center justify-between p-4 border border-gray-100 rounded-2xl hover:border-brand-500 hover:shadow-md transition-all cursor-pointer group bg-gray-50">
                   <div className="flex items-center gap-4">
                     <div className="bg-white p-2 rounded-xl text-brand-600 shadow-sm">
-                       <Calendar size={20} />
+                      <Calendar size={20} />
                     </div>
                     <div>
                       <span className="block font-bold text-lg text-gray-900">{time}</span>
@@ -59,12 +59,12 @@ const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose }) => {
             </div>
 
             <div className="mt-6 pt-6 border-t border-gray-100">
-               <p className="text-center text-xs text-gray-400 mb-4">
-                 예약 확정 시 카카오톡으로 안내 메시지가 발송됩니다.
-               </p>
-               <button onClick={onClose} className="w-full py-4 bg-gray-900 text-white font-bold rounded-xl hover:bg-gray-800">
-                 닫기
-               </button>
+              <p className="text-center text-xs text-gray-400 mb-4">
+                예약 확정 시 카카오톡으로 안내 메시지가 발송됩니다.
+              </p>
+              <button onClick={onClose} className="w-full py-4 bg-gray-900 text-white font-bold rounded-xl hover:bg-gray-800">
+                닫기
+              </button>
             </div>
           </motion.div>
         </div>

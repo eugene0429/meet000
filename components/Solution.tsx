@@ -23,7 +23,7 @@ const Solution: React.FC = () => {
         {/* Main Heading */}
         <div className="mb-20">
           <span className="text-brand-600 font-bold text-lg tracking-wide uppercase block mb-2">The 40-Min Rule</span>
-          <h2 className="text-4xl md:text-6xl font-black text-gray-900 tracking-tighter leading-tight">
+          <h2 className="text-2xl sm:text-3xl md:text-6xl font-black text-gray-900 tracking-tighter leading-tight">
             딱 40분,<br />
             설렘은 채우고 <span className="text-brand-500">부담은 덜었습니다.</span>
           </h2>
@@ -43,7 +43,7 @@ const Solution: React.FC = () => {
                   <p className="text-gray-500">비밀 투표 시스템</p>
                 </div>
               </div>
-              <p className="text-lg text-gray-700 leading-relaxed font-medium">
+              <p className="text-[14px] lg:text-lg text-gray-700 leading-relaxed font-medium">
                 40분 후, 계속 만날지 말지는 비밀리에 선택하세요.
                 서로 동의할 때만 2차로 이어집니다. 거절의 어색함도,
                 불필요한 시간 낭비도 없습니다.
@@ -51,8 +51,8 @@ const Solution: React.FC = () => {
             </div>
           </div>
           <div className="order-1 lg:order-2">
-            <h3 className="text-3xl font-bold mb-4">가장 완벽한 타이밍, 40분</h3>
-            <p className="text-gray-600 text-lg">
+            <h3 className="text-2xl lg:text-3xl font-bold mb-4">가장 완벽한 타이밍, 40분</h3>
+            <p className="text-[11.5px] lg:text-lg text-gray-600">
               너무 짧지도, 길지도 않은 시간. 서로의 호감을 확인하기에 충분한 시간입니다.
               meet000의 알람이 울리면, 선택의 시간이 찾아옵니다.
             </p>
@@ -62,10 +62,10 @@ const Solution: React.FC = () => {
         {/* Feature 1.5: Verified System */}
         <div className="my-64">
           <div className="text-center mb-12">
-            <h3 className="text-3xl md:text-4xl font-black text-gray-900 mb-4">
+            <h3 className="text-2xl md:text-4xl font-black text-gray-900 mb-4">
               체계적인 <span className="text-brand-600">안심 시스템</span>
             </h3>
-            <p className="text-gray-500 text-lg">
+            <p className="text-[13px] lg:text-lg text-gray-500">
               신원 인증부터 매칭까지, meet000이 확실하게 관리합니다.
             </p>
           </div>
@@ -110,51 +110,6 @@ const Solution: React.FC = () => {
             </div>
           </div>
         </div>
-
-        {/* Feature 2: AI Ice Breaking */}
-        <div className="bg-black rounded-[3rem] p-8 md:p-16 relative overflow-hidden text-white">
-          <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-brand-500/20 rounded-full blur-[100px]" />
-
-          <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            <div>
-              <div className="inline-flex items-center gap-2 bg-white/10 px-4 py-2 rounded-full mb-6 backdrop-blur-md border border-white/10">
-                <Sparkles size={18} className="text-yellow-400" />
-                <span className="font-bold text-sm">Powered by Gemini AI</span>
-              </div>
-              <h3 className="text-3xl md:text-5xl font-bold mb-6">
-                어색할 틈 없는<br />
-                <span className="text-brand-400">Ice-Breaking</span>
-              </h3>
-              <p className="text-gray-400 text-lg mb-8">
-                전문 진행자 없이도 텐션 UP! meet000만의 자체 콘텐츠와
-                AI가 추천하는 대화 주제가 분위기를 자연스럽게 리드합니다.
-              </p>
-            </div>
-
-            {/* Interactive AI Widget */}
-            <div className="bg-white/10 backdrop-blur-xl rounded-3xl p-6 border border-white/10">
-              <div className="text-center mb-6">
-                <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">AI Topic Generator</span>
-              </div>
-
-              <div className="bg-white/5 rounded-2xl p-6 mb-6 min-h-[120px] flex items-center justify-center">
-                <p className="text-xl md:text-2xl font-bold text-center text-white leading-relaxed animate-pulse-once">
-                  {loading ? "AI가 주제를 생각중입니다..." : `"${iceBreaker}"`}
-                </p>
-              </div>
-
-              <button
-                onClick={handleGenerate}
-                disabled={loading}
-                className="w-full bg-brand-600 hover:bg-brand-500 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
-              >
-                <RefreshCcw size={20} className={loading ? "animate-spin" : ""} />
-                {loading ? "생성 중..." : "새로운 주제 받기"}
-              </button>
-            </div>
-          </div>
-        </div>
-
       </div>
     </section>
   );

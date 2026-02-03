@@ -21,9 +21,10 @@ interface ReservationSystemProps {
 interface ExtendedMeetingSlot extends MeetingSlot {
   malePrice?: number;
   femalePrice?: number;
+  isPast?: boolean;
 }
 
-const TIMES = ['18:00', '19:00', '20:00', '21:00', '22:00', '23:00', '24:00'];
+const TIMES = ['18:00', '19:00', '20:00', '21:00', '22:00', '23:00'];
 
 // Helper: Image Compression
 const compressImage = async (file: File): Promise<Blob> => {
@@ -92,7 +93,11 @@ const ReservationSystem: React.FC<ReservationSystemProps> = ({ isOpen, onClose }
 
   const fetchSlots = async (date: Date) => {
     setLoadingSlots(true);
-    const dateStr = date.toISOString().split('T')[0];
+    // 로컬 시간대 기준으로 날짜 문자열 생성 (toISOString은 UTC로 변환되어 날짜가 달라질 수 있음)
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const dateStr = `${year}-${month}-${day}`;
 
     try {
       // 1. Fetch Teams
@@ -115,12 +120,17 @@ const ReservationSystem: React.FC<ReservationSystemProps> = ({ isOpen, onClose }
       const openTimes: string[] = dailyConfig?.open_times || [];
       const defaultMaxApplicants = dailyConfig?.max_applicants || 3;
 
+      // 지난 날짜인지 확인 (한국 시간 기준)
+      const today = new Date();
+      const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      const isPastDate = dateStr < todayStr;
+
       // 3. Map to MeetingSlots
       const newSlots: ExtendedMeetingSlot[] = TIMES.map(time => {
         const teamsAtTimeRaw = teams?.filter(t => t.time === time) || [];
 
-        // 해당 시간이 open_times 배열에 있으면 활성화
-        const isOpen = openTimes.includes(time);
+        // 지난 날짜는 무조건 닫힘, 아니면 open_times 배열 확인
+        const isOpen = isPastDate ? false : openTimes.includes(time);
 
         // Parse slot config from JSON
         const slotConfig = dailyConfig?.slot_configs?.[time] || {};
@@ -150,7 +160,16 @@ const ReservationSystem: React.FC<ReservationSystemProps> = ({ isOpen, onClose }
         const isFirstConfirmed = teamsAtTimeRaw.some(t => t.status === 'FIRST_CONFIRMED');
         const isMatchConfirmed = teamsAtTimeRaw.some(t => t.status === 'MATCH_CONFIRMED');
 
-        if (!isOpen) {
+        // 지난 날짜 처리: 매칭 완료된 것만 표시, 나머지는 마감
+        if (isPastDate) {
+          if (isMatchConfirmed) {
+            status = SlotStatus.MATCH_CONFIRMED;
+          } else if (isFirstConfirmed) {
+            status = SlotStatus.FIRST_CONFIRMED;
+          } else {
+            status = SlotStatus.CLOSED; // 지난 날짜는 신규 등록/신청 불가
+          }
+        } else if (!isOpen) {
           status = SlotStatus.CLOSED;
         } else if (isMatchConfirmed) {
           status = SlotStatus.MATCH_CONFIRMED;
@@ -171,6 +190,7 @@ const ReservationSystem: React.FC<ReservationSystemProps> = ({ isOpen, onClose }
           maxApplicants,
           malePrice,
           femalePrice,
+          isPast: isPastDate,
           hostTeam,
           guestTeams
         };
@@ -249,7 +269,11 @@ const ReservationSystem: React.FC<ReservationSystemProps> = ({ isOpen, onClose }
 
     setSubmitting(true);
     try {
-      const dateStr = selectedDate.toISOString().split('T')[0];
+      // 로컬 시간대 기준으로 날짜 문자열 생성
+      const year = selectedDate.getFullYear();
+      const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+      const day = String(selectedDate.getDate()).padStart(2, '0');
+      const dateStr = `${year}-${month}-${day}`;
       const timeStr = selectedSlot.time;
 
       const compressedImageBlob = await compressImage(formData.studentIdImage);
@@ -359,7 +383,7 @@ const ReservationSystem: React.FC<ReservationSystemProps> = ({ isOpen, onClose }
     if (slot.status === SlotStatus.CLOSED) {
       return (
         <button disabled className="w-full py-3 rounded-xl font-bold text-sm bg-gray-100 text-gray-400 cursor-not-allowed flex items-center justify-center gap-2">
-          <Lock size={16} /> 예약 오픈 전
+          <Lock size={16} /> {slot.isPast ? '이미 지난 날짜' : '예약 오픈 전'}
         </button>
       );
     }
@@ -409,7 +433,7 @@ const ReservationSystem: React.FC<ReservationSystemProps> = ({ isOpen, onClose }
             <button onClick={onClose} className="absolute top-6 right-6 z-50 p-2 bg-white/50 backdrop-blur-sm rounded-full hover:bg-gray-100 transition-colors"><X size={24} /></button>
 
             {/* Left Panel */}
-            <div className={`w-full md:w-1/2 lg:w-5/12 bg-slate-50 flex flex-col border-r border-gray-100 ${view !== 'CALENDAR' ? 'hidden md:flex' : ''}`}>
+            <div className={`w-full md:w-1/2 lg:w-5/12 bg-slate-50 flex flex-col h-full border-r border-gray-100 ${view !== 'CALENDAR' ? 'hidden md:flex' : ''}`}>
               <div className="p-8 pb-4">
                 <h2 className="text-3xl font-black text-gray-900 mb-2">예약하기</h2>
                 <div className="flex items-center justify-between mb-6">
@@ -462,7 +486,7 @@ const ReservationSystem: React.FC<ReservationSystemProps> = ({ isOpen, onClose }
                             }`}>
                             {slot.status === SlotStatus.MATCH_CONFIRMED ? '매칭완료' :
                               slot.status === SlotStatus.FIRST_CONFIRMED ? '매칭진행중' :
-                                slot.status === SlotStatus.CLOSED ? '마감' :
+                                slot.status === SlotStatus.CLOSED ? (slot.isPast ? '기간만료' : '마감') :
                                   slot.status === SlotStatus.FULL ? '신청초과' :
                                     slot.hostTeam ? '신청가능' : '등록가능'}
                           </span>

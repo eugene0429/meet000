@@ -1,8 +1,12 @@
-
 import React from 'react';
-import { UserPlus, Users, MousePointerClick, ThumbsUp } from 'lucide-react';
+import { UserPlus, Users, MousePointerClick, ThumbsUp, ArrowRight } from 'lucide-react';
+import { DetailTab } from '../types';
 
-const HowItWorks: React.FC = () => {
+interface HowItWorksProps {
+  onOpenDetail: (tab: DetailTab) => void;
+}
+
+const HowItWorks: React.FC<HowItWorksProps> = ({ onOpenDetail }) => {
   const steps = [
     {
       id: "01",
@@ -34,17 +38,17 @@ const HowItWorks: React.FC = () => {
     <section id="how-it-works" className="py-24 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
-          <h2 className="text-4xl font-black text-gray-900 mb-4">How it works</h2>
-          <p className="text-xl text-gray-500">먼저 등록하여 선택권을 가지거나, 원하는 팀에게 도전하세요.</p>
+          <h2 className="text-2xl lg:text-4xl font-black text-gray-900 mb-4">How it works</h2>
+          <p className="text-[13px] lg:text-xl text-gray-500">먼저 등록하여 선택권을 가지거나, 원하는 팀에게 도전하세요.</p>
         </div>
 
-        <div className="relative">
+        <div className="relative mb-16">
           {/* Connector Line (Desktop) */}
           <div className="hidden lg:block absolute top-1/2 left-0 w-full h-1 bg-gray-100 -translate-y-1/2 z-0" />
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 relative z-10">
             {steps.map((step) => (
-              <div key={step.id} className="bg-white p-6 rounded-3xl border border-gray-100 shadow-xl hover:shadow-2xl transition-all hover:-translate-y-2 group">
+              <div key={step.id} className="relative bg-white p-6 rounded-3xl border border-gray-100 shadow-xl hover:shadow-2xl transition-all hover:-translate-y-2 group">
                 <div className="w-16 h-16 rounded-2xl bg-brand-50 flex items-center justify-center mb-6 group-hover:bg-brand-100 transition-colors">
                   {step.icon}
                 </div>
@@ -58,6 +62,19 @@ const HowItWorks: React.FC = () => {
               </div>
             ))}
           </div>
+        </div>
+
+        {/* Action Button for Detailed Process */}
+        <div className="flex justify-center">
+          <button
+            onClick={() => onOpenDetail('PROCESS')}
+            className="group flex items-center gap-3 bg-gray-50 hover:bg-brand-50 text-gray-900 p-2 pl-6 rounded-full border border-gray-200 hover:border-brand-200 transition-all shadow-sm hover:shadow-md"
+          >
+            <span className="font-bold">더 상세한 이용 방법 확인하기</span>
+            <div className="w-10 h-10 bg-white group-hover:bg-brand-500 rounded-full flex items-center justify-center shadow-sm group-hover:text-white transition-all">
+              <ArrowRight size={20} />
+            </div>
+          </button>
         </div>
       </div>
     </section>

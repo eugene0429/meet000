@@ -35,7 +35,7 @@ const PainPoints: React.FC = () => {
     <section className="py-24 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-5xl font-black text-gray-900 tracking-tight mb-6">
+          <h2 className="text-3xl md:text-5xl font-black text-gray-900 tracking-tight mb-6">
             기존 미팅, <br />
             <span className="text-gray-400 decoration-4 decoration-accent-orange underline-offset-4">이런 점이 힘들지 않았나요?</span>
           </h2>
@@ -56,10 +56,10 @@ const PainPoints: React.FC = () => {
                 {card.icon}
               </div>
               <div>
-                <h3 className={`text-2xl font-bold mb-4 tracking-tight ${card.textColor || 'text-white'}`}>
+                <h3 className={`text-[27px] lg:text-2xl font-bold mb-4 tracking-tight ${card.textColor || 'text-white'}`}>
                   {card.title}
                 </h3>
-                <p className={`text-[15px] font-medium leading-relaxed whitespace-pre-wrap ${card.textColor || 'text-white/90'}`}>
+                <p className={`text-[14px] lg:text-[15px] font-medium leading-relaxed whitespace-pre-wrap ${card.textColor || 'text-white/90'}`}>
                   {card.desc}
                 </p>
               </div>

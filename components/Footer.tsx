@@ -27,6 +27,7 @@ const PolicyModal: React.FC<{ isOpen: boolean; onClose: () => void; title: strin
 };
 
 const Footer: React.FC<FooterProps> = ({ onCtaClick, onAdminTrigger }) => {
+  const isLandingOnly = import.meta.env.VITE_LANDING_ONLY === 'true';
   const [clickCount, setClickCount] = useState(0);
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
@@ -93,29 +94,31 @@ const Footer: React.FC<FooterProps> = ({ onCtaClick, onAdminTrigger }) => {
     <>
       <footer className="bg-white pt-24 pb-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-brand-600 rounded-[3rem] p-12 md:p-24 text-center relative overflow-hidden mb-20">
-            {/* Background decoration */}
-            <div className="absolute top-0 left-0 w-full h-full">
-              <div className="absolute top-10 left-10 w-32 h-32 bg-white opacity-10 rounded-full blur-2xl" />
-              <div className="absolute bottom-10 right-10 w-64 h-64 bg-accent-yellow opacity-20 rounded-full blur-3xl mix-blend-overlay" />
-            </div>
+          {!isLandingOnly && (
+            <div className="bg-brand-600 rounded-[3rem] p-12 md:p-24 text-center relative overflow-hidden mb-20">
+              {/* Background decoration */}
+              <div className="absolute top-0 left-0 w-full h-full">
+                <div className="absolute top-10 left-10 w-32 h-32 bg-white opacity-10 rounded-full blur-2xl" />
+                <div className="absolute bottom-10 right-10 w-64 h-64 bg-accent-yellow opacity-20 rounded-full blur-3xl mix-blend-overlay" />
+              </div>
 
-            <div className="relative z-10">
-              <h2 className="text-4xl md:text-6xl font-black text-white mb-8 tracking-tight">
-                새로운 설렘, <br />
-                지금 바로 예약해보세요.
-              </h2>
-              <button
-                onClick={onCtaClick}
-                className="bg-white text-brand-600 px-10 py-5 rounded-full font-black text-xl hover:scale-105 transition-transform shadow-2xl"
-              >
-                오늘의 미팅 라인업 보기
-              </button>
+              <div className="relative z-10">
+                <h2 className="text-[25px] md:text-6xl font-black text-white mb-8 tracking-tight">
+                  새로운 설렘, <br />
+                  지금 바로 예약해보세요.
+                </h2>
+                <button
+                  onClick={onCtaClick}
+                  className="bg-white text-brand-600 px-6 py-4 lg:px-10 lg:py-5 rounded-full font-black text-base lg:text-xl hover:scale-105 transition-transform shadow-2xl"
+                >
+                  오늘의 미팅 라인업 보기
+                </button>
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="border-t border-gray-100 pt-12 flex flex-col md:flex-row justify-between items-center text-gray-400 text-sm">
-            <div className="mb-4 md:mb-0 select-none cursor-default" onClick={handleSecretClick}>
+            <div className="mb-4 md:mb-0 select-none cursor-default" onClick={!isLandingOnly ? handleSecretClick : undefined}>
               <span className="font-bold text-gray-900 text-lg mr-2">meet000</span>
               © 2024 All rights reserved.
             </div>

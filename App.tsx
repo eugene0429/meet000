@@ -12,12 +12,16 @@ import AdminDashboard from './components/AdminDashboard';
 import { DetailTab } from './types';
 
 const App: React.FC = () => {
+  const isLandingOnly = import.meta.env.VITE_LANDING_ONLY === 'true';
   const [isReservationOpen, setIsReservationOpen] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [detailTab, setDetailTab] = useState<DetailTab>('SERVICE');
 
-  const openReservation = () => setIsReservationOpen(true);
+  const openReservation = () => {
+    if (isLandingOnly) return;
+    setIsReservationOpen(true);
+  };
   const closeReservation = () => setIsReservationOpen(false);
 
   const openDetail = (tab: DetailTab) => {
@@ -29,35 +33,39 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-white font-sans text-gray-900 selection:bg-brand-200 selection:text-brand-900">
       <Header onBookClick={openReservation} onOpenDetail={openDetail} />
-      
+
       <main>
         <Hero onCtaClick={openReservation} />
         <PainPoints />
         <Solution />
-        <HowItWorks />
-        <SpaceIntro />
+        <HowItWorks onOpenDetail={openDetail} />
+        <SpaceIntro onOpenDetail={openDetail} />
       </main>
 
-      <Footer 
-        onCtaClick={openReservation} 
+      <Footer
+        onCtaClick={openReservation}
         onAdminTrigger={() => setIsAdminOpen(true)}
       />
-      
-      <ReservationSystem 
-        isOpen={isReservationOpen} 
-        onClose={closeReservation} 
-      />
 
-      <DetailModal 
+      {!isLandingOnly && (
+        <ReservationSystem
+          isOpen={isReservationOpen}
+          onClose={closeReservation}
+        />
+      )}
+
+      <DetailModal
         isOpen={isDetailOpen}
         onClose={closeDetail}
         initialTab={detailTab}
       />
 
-      <AdminDashboard 
-        isOpen={isAdminOpen}
-        onClose={() => setIsAdminOpen(false)}
-      />
+      {!isLandingOnly && (
+        <AdminDashboard
+          isOpen={isAdminOpen}
+          onClose={() => setIsAdminOpen(false)}
+        />
+      )}
     </div>
   );
 };

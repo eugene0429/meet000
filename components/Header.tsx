@@ -9,6 +9,7 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ onBookClick, onOpenDetail }) => {
+  const isLandingOnly = import.meta.env.VITE_LANDING_ONLY === 'true';
   const [isOpen, setIsOpen] = React.useState(false);
 
   const toggleMenu = () => setIsOpen(!isOpen);
@@ -46,12 +47,14 @@ const Header: React.FC<HeaderProps> = ({ onBookClick, onOpenDetail }) => {
                 {link.name}
               </button>
             ))}
-            <button 
-              onClick={onBookClick}
-              className="bg-black text-white px-6 py-2.5 rounded-full font-bold hover:bg-gray-800 transition-transform hover:scale-105 active:scale-95 shadow-lg"
-            >
-              예약하기
-            </button>
+            {!isLandingOnly && (
+              <button
+                onClick={onBookClick}
+                className="bg-black text-white px-6 py-2.5 rounded-full font-bold hover:bg-gray-800 transition-transform hover:scale-105 active:scale-95 shadow-lg"
+              >
+                예약하기
+              </button>
+            )}
           </nav>
 
           {/* Mobile Menu Button */}
@@ -85,17 +88,19 @@ const Header: React.FC<HeaderProps> = ({ onBookClick, onOpenDetail }) => {
                   {link.name}
                 </button>
               ))}
-              <div className="pt-4">
-                 <button 
-                   onClick={() => {
-                     setIsOpen(false);
-                     onBookClick?.();
-                   }}
-                   className="w-full bg-brand-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-brand-700 shadow-md"
-                 >
-                  지금 예약하기
-                </button>
-              </div>
+              {!isLandingOnly && (
+                <div className="pt-4">
+                  <button
+                    onClick={() => {
+                      setIsOpen(false);
+                      onBookClick?.();
+                    }}
+                    className="w-full bg-brand-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-brand-700 shadow-md"
+                  >
+                    지금 예약하기
+                  </button>
+                </div>
+              )}
             </div>
           </motion.div>
         )}

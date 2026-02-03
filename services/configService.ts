@@ -1,19 +1,11 @@
 import { supabase } from '../lib/supabaseClient';
 
 export interface SystemConfig {
-    paymentLinkFirst: string;
-    paymentLinkFinal: string;
-    paymentAmountFirst: string;
-    paymentAmountFinal: string;
     templates: Record<string, string>;
 }
 
 // Default config from Environment Variables
 const envConfig: SystemConfig = {
-    paymentLinkFirst: import.meta.env.VITE_PAYMENT_LINK_FIRST || 'https://pay.example.com',
-    paymentLinkFinal: import.meta.env.VITE_PAYMENT_LINK_FINAL || 'https://pay.example.com/final',
-    paymentAmountFirst: import.meta.env.VITE_PAYMENT_AMOUNT_FIRST || '5000',
-    paymentAmountFinal: import.meta.env.VITE_PAYMENT_AMOUNT_FINAL || '10000',
     templates: {
         HOST_REGISTERED: import.meta.env.VITE_TEMPLATE_HOST_REGISTERED || '',
         GUEST_APPLIED: import.meta.env.VITE_TEMPLATE_GUEST_APPLIED || '',
@@ -46,26 +38,15 @@ export const fetchSystemConfig = async (): Promise<SystemConfig> => {
             return envConfig;
         }
 
-        const config = { ...envConfig, templates: { ...envConfig.templates } };
+        const config = { templates: { ...envConfig.templates } };
+
 
         data.forEach(row => {
-            // Payment Config
-            if (row.key === 'payment_link_first') config.paymentLinkFirst = row.value;
-            if (row.key === 'payment_link_final') config.paymentLinkFinal = row.value;
-            if (row.key === 'payment_amount_first') config.paymentAmountFirst = row.value;
-            if (row.key === 'payment_amount_final') config.paymentAmountFinal = row.value;
-
-            // Template Config Overrides (e.g. key: "template_host_registered")
             if (row.key.startsWith('template_')) {
                 const templateKey = row.key.replace('template_', '').toUpperCase();
-                // Only update if it allows mapping to one of our keys, or just add it dynamic
-                // Here we try to map to known keys if possible, or fuzzy match
-
-                // Exact match check
                 if (config.templates[templateKey] !== undefined) {
                     config.templates[templateKey] = row.value;
                 } else {
-                    // Try to find matching key
                     const foundKey = Object.keys(config.templates).find(k => k === templateKey);
                     if (foundKey) {
                         config.templates[foundKey] = row.value;

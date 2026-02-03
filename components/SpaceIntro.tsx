@@ -1,7 +1,12 @@
 import React from 'react';
-import { ShieldCheck } from 'lucide-react';
+import { ShieldCheck, ArrowRight } from 'lucide-react';
+import { DetailTab } from '../types';
 
-const SpaceIntro: React.FC = () => {
+interface SpaceIntroProps {
+  onOpenDetail: (tab: DetailTab) => void;
+}
+
+const SpaceIntro: React.FC<SpaceIntroProps> = ({ onOpenDetail }) => {
   return (
     <section id="space" className="py-24 bg-slate-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -11,12 +16,12 @@ const SpaceIntro: React.FC = () => {
               <ShieldCheck size={20} />
               <span>검증된 공간</span>
             </div>
-            <h2 className="text-4xl font-black text-gray-900">
+            <h2 className="text-2xl lg:text-4xl font-black text-gray-900">
               space000에서 <br />
               안전하고 프라이빗하게
             </h2>
           </div>
-          <p className="text-gray-600 max-w-md text-lg">
+          <p className="text-[14px] lg:text-lg text-gray-600 max-w-md">
             이미 많은 대학생이 만족한 공간.<br />
             술집의 소음이나 어색한 조명 걱정 없이 대화에 집중하세요.
           </p>
@@ -45,15 +50,20 @@ const SpaceIntro: React.FC = () => {
               Private Booth
             </div>
           </div>
-          <div className="relative rounded-[2rem] overflow-hidden group bg-brand-900 flex items-center justify-center p-8">
+
+          {/* Replaced Ratings Card with Modal Button */}
+          <button
+            onClick={() => onOpenDetail('SPACE')}
+            className="relative rounded-[2rem] overflow-hidden group bg-brand-600 hover:bg-brand-500 transition-colors flex flex-col items-center justify-center p-8 text-white shadow-xl hover:shadow-2xl active:scale-95 transition-all"
+          >
             <div className="text-center">
-              <span className="block text-5xl font-black text-white mb-2">4.8</span>
-              <div className="flex justify-center gap-1 text-yellow-400 mb-2">
-                {'★★★★★'.split('').map((s, i) => <span key={i}>{s}</span>)}
+              <span className="block text-3xl font-black mb-2">공간 둘러보기</span>
+              <p className="text-brand-100 text-sm mb-4">내부 인테리어와 후기 확인하기</p>
+              <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center mx-auto group-hover:translate-x-1 transition-transform">
+                <ArrowRight size={24} />
               </div>
-              <span className="text-white font-medium">사용자 평점</span>
             </div>
-          </div>
+          </button>
         </div>
       </div>
     </section>

@@ -7,6 +7,7 @@ interface HeroProps {
 }
 
 const Hero: React.FC<HeroProps> = ({ onCtaClick }) => {
+  const isLandingOnly = import.meta.env.VITE_LANDING_ONLY === 'true';
   return (
     <section className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden bg-slate-50">
       {/* Abstract Background Elements */}
@@ -31,28 +32,30 @@ const Hero: React.FC<HeroProps> = ({ onCtaClick }) => {
               <span className="text-sm font-bold text-gray-800 tracking-tight">대전 대학생들을 위한 N:N 매칭</span>
             </div>
 
-            <h1 className="text-5xl lg:text-7xl font-black text-gray-900 leading-[1.1] mb-6 tracking-tighter text-balance">
-              아는 인맥 총동원<br />
+            <h1 className="text-4xl sm:text-4xl lg:text-7xl font-black text-gray-900 leading-[1.1] mb-6 tracking-tighter text-balance">
+              부담스럽고 불편한<br />
               <span className="text-gray-400">미팅은 그만,</span><br />
               <span className="bg-gradient-to-r from-brand-500 to-accent-blue bg-clip-text text-transparent">오늘 만날까요?</span>
             </h1>
 
-            <p className="text-xl text-gray-600 mb-8 max-w-lg mx-auto lg:mx-0 font-medium leading-relaxed">
+            <p className="text-[10px] lg:text-xl text-gray-600 mb-8 max-w-lg mx-auto lg:mx-0 font-medium leading-relaxed">
               가장 가볍고 확실한 40분. <br className="hidden md:block" />
               meet000에서 새로운 인연을 부담없이 만나보세요.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-              <button
-                onClick={onCtaClick}
-                className="group relative px-8 py-4 bg-gray-900 text-white text-lg font-bold rounded-full overflow-hidden shadow-xl hover:shadow-2xl transition-all hover:scale-105 active:scale-95"
-              >
-                <span className="relative z-10 flex items-center justify-center gap-2">
-                  지금 바로 빈 슬롯 확인하기
-                  <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
-                </span>
-              </button>
-            </div>
+            {!isLandingOnly && (
+              <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+                <button
+                  onClick={onCtaClick}
+                  className="group relative px-8 py-4 bg-gray-900 text-white text-lg font-bold rounded-full overflow-hidden shadow-xl hover:shadow-2xl transition-all hover:scale-105 active:scale-95"
+                >
+                  <span className="relative z-10 flex items-center justify-center gap-2">
+                    지금 바로 빈 슬롯 확인하기
+                    <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
+                  </span>
+                </button>
+              </div>
+            )}
           </motion.div>
 
           {/* Visual Content - Staggered Grid */}
