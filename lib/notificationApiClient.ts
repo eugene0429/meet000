@@ -12,37 +12,40 @@ interface NotificationResult {
     error?: string;
 }
 
-// 알림톡 템플릿 ID (환경변수에서 로드)
+// ✅ JSON 파일에서 템플릿 ID 로드
+import templateIds from '../templates/templates.json';
+
+// 알림톡 템플릿 ID (환경변수에서 로드 -> JSON 파일 사용)
 export const TEMPLATES = {
     // 01~03: 예약/등록 단계
-    HOST_REGISTERED: import.meta.env.VITE_TEMPLATE_HOST_REGISTERED || 'template_01',
-    GUEST_APPLIED: import.meta.env.VITE_TEMPLATE_GUEST_APPLIED || 'template_02',
-    HOST_NEW_APPLICANT: import.meta.env.VITE_TEMPLATE_HOST_NEW_APPLICANT || 'template_03',
+    HOST_REGISTERED: templateIds.HOST_REGISTERED || 'template_01',
+    GUEST_APPLIED: templateIds.GUEST_APPLIED || 'template_02',
+    HOST_NEW_APPLICANT: templateIds.HOST_NEW_APPLICANT || 'template_03',
     // 04~05: 1차 매칭 단계
-    FIRST_MATCH_COMPLETE: import.meta.env.VITE_TEMPLATE_FIRST_MATCH_COMPLETE || 'template_04',
-    PUBLIC_ROOM_FIRST_MATCH: import.meta.env.VITE_TEMPLATE_PUBLIC_ROOM_FIRST_MATCH || 'template_04_public',  // 공개방 전용
-    NOT_SELECTED: import.meta.env.VITE_TEMPLATE_NOT_SELECTED || 'template_05',
+    FIRST_MATCH_COMPLETE: templateIds.FIRST_MATCH_COMPLETE || 'template_04',
+    PUBLIC_ROOM_FIRST_MATCH: templateIds.PUBLIC_ROOM_FIRST_MATCH || 'template_04_public',  // 공개방 전용
+    NOT_SELECTED: templateIds.NOT_SELECTED || 'template_05',
     // 06~09: 정보 교환 단계 (비공개방 전용, 공개방에서는 사용 안함)
-    PAYMENT_REQUEST: import.meta.env.VITE_TEMPLATE_PAYMENT_REQUEST || 'template_06',
-    INFO_DELIVERED: import.meta.env.VITE_TEMPLATE_INFO_DELIVERED || 'template_07',
-    INFO_DENIED_CONTINUE: import.meta.env.VITE_TEMPLATE_INFO_DENIED_CONTINUE || 'template_08',
-    WAIT_OTHER_TEAM: import.meta.env.VITE_TEMPLATE_WAIT_OTHER_TEAM || 'template_09',
+    PAYMENT_REQUEST: templateIds.PAYMENT_REQUEST || 'template_06',
+    INFO_DELIVERED: templateIds.INFO_DELIVERED || 'template_07',
+    INFO_DENIED_CONTINUE: templateIds.INFO_DENIED_CONTINUE || 'template_08',
+    WAIT_OTHER_TEAM: templateIds.WAIT_OTHER_TEAM || 'template_09',
     // 10~11: 최종 매칭 단계
-    FINAL_PAYMENT_REQUEST: import.meta.env.VITE_TEMPLATE_FINAL_PAYMENT_REQUEST || 'template_10',
-    FINAL_MATCH_COMPLETE: import.meta.env.VITE_TEMPLATE_FINAL_MATCH_COMPLETE || 'template_11',
+    FINAL_PAYMENT_REQUEST: templateIds.FINAL_PAYMENT_REQUEST || 'template_10',
+    FINAL_MATCH_COMPLETE: templateIds.FINAL_MATCH_COMPLETE || 'template_11',
     // 12~17: 취소 단계
-    PROCESS_CANCELLED: import.meta.env.VITE_TEMPLATE_PROCESS_CANCELLED || 'template_12',
-    HOST_CANCELLED_ALL: import.meta.env.VITE_TEMPLATE_HOST_CANCELLED_ALL || 'template_13',
-    GUEST_CANCELLED_AFTER_FIRST: import.meta.env.VITE_TEMPLATE_GUEST_CANCELLED_AFTER_FIRST || 'template_14',
-    GUEST_CANCELLED_HOST_NOTIFY: import.meta.env.VITE_TEMPLATE_GUEST_CANCELLED_HOST_NOTIFY || 'template_15',
-    GUEST_CANCELLED_BEFORE_FIRST: import.meta.env.VITE_TEMPLATE_GUEST_CANCELLED_BEFORE_FIRST || 'template_16',
-    GUEST_CANCELLED_BEFORE_HOST_NOTIFY: import.meta.env.VITE_TEMPLATE_GUEST_CANCELLED_BEFORE_HOST_NOTIFY || 'template_17',
-    STUDENT_ID_REJECTED: import.meta.env.VITE_TEMPLATE_STUDENT_ID_REJECTED || 'template_21',
-    REFUND_GUIDE: import.meta.env.VITE_TEMPLATE_REFUND_GUIDE || 'template_18',
-    NO_REFUND_NOTICE: import.meta.env.VITE_TEMPLATE_NO_REFUND_NOTICE || 'template_19',
-    MATCH_REMINDER: import.meta.env.VITE_TEMPLATE_MATCH_REMINDER || 'template_20',
+    PROCESS_CANCELLED: templateIds.PROCESS_CANCELLED || 'template_12',
+    HOST_CANCELLED_ALL: templateIds.HOST_CANCELLED_ALL || 'template_13',
+    GUEST_CANCELLED_AFTER_FIRST: templateIds.GUEST_CANCELLED_AFTER_FIRST || 'template_14',
+    GUEST_CANCELLED_HOST_NOTIFY: templateIds.GUEST_CANCELLED_HOST_NOTIFY || 'template_15',
+    GUEST_CANCELLED_BEFORE_FIRST: templateIds.GUEST_CANCELLED_BEFORE_FIRST || 'template_16',
+    GUEST_CANCELLED_BEFORE_HOST_NOTIFY: templateIds.GUEST_CANCELLED_BEFORE_HOST_NOTIFY || 'template_17',
+    STUDENT_ID_REJECTED: templateIds.STUDENT_ID_REJECTED || 'template_21',
+    REFUND_GUIDE: templateIds.REFUND_GUIDE || 'template_18',
+    NO_REFUND_NOTICE: templateIds.NO_REFUND_NOTICE || 'template_19',
+    MATCH_REMINDER: templateIds.MATCH_REMINDER || 'template_20',
     // 22: 선택 시간 안내
-    DECISION_TIME: import.meta.env.VITE_TEMPLATE_DECISION_TIME || 'template_22',
+    DECISION_TIME: templateIds.DECISION_TIME || 'template_22',
 };
 
 // ... (omitted sendNotification)

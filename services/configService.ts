@@ -1,30 +1,47 @@
 import { supabase } from '../lib/supabaseClient';
+import templateIds from '../templates/templates.json';
 
 export interface SystemConfig {
     templates: Record<string, string>;
+    paymentLinkFirst?: string;
+    paymentAmountFirst?: string;
+    paymentLinkFinal?: string;
+    paymentAmountFinal?: string;
 }
 
-// Default config from Environment Variables
-const envConfig: SystemConfig = {
+// Default config from JSON file + Env for payment
+const defaultConfig: SystemConfig = {
     templates: {
-        HOST_REGISTERED: import.meta.env.VITE_TEMPLATE_HOST_REGISTERED || '',
-        GUEST_APPLIED: import.meta.env.VITE_TEMPLATE_GUEST_APPLIED || '',
-        HOST_NEW_APPLICANT: import.meta.env.VITE_TEMPLATE_HOST_NEW_APPLICANT || '',
-        FIRST_MATCH_COMPLETE: import.meta.env.VITE_TEMPLATE_FIRST_MATCH_COMPLETE || '',
-        NOT_SELECTED: import.meta.env.VITE_TEMPLATE_NOT_SELECTED || '',
-        PAYMENT_REQUEST: import.meta.env.VITE_TEMPLATE_PAYMENT_REQUEST || '',
-        INFO_DELIVERED: import.meta.env.VITE_TEMPLATE_INFO_DELIVERED || '',
-        INFO_DENIED_CONTINUE: import.meta.env.VITE_TEMPLATE_INFO_DENIED_CONTINUE || '',
-        WAIT_OTHER_TEAM: import.meta.env.VITE_TEMPLATE_WAIT_OTHER_TEAM || '',
-        FINAL_PAYMENT_REQUEST: import.meta.env.VITE_TEMPLATE_FINAL_PAYMENT_REQUEST || '',
-        FINAL_MATCH_COMPLETE: import.meta.env.VITE_TEMPLATE_FINAL_MATCH_COMPLETE || '',
-        PROCESS_CANCELLED: import.meta.env.VITE_TEMPLATE_PROCESS_CANCELLED || '',
-        HOST_CANCELLED_ALL: import.meta.env.VITE_TEMPLATE_HOST_CANCELLED_ALL || '',
-        GUEST_CANCELLED_AFTER_FIRST: import.meta.env.VITE_TEMPLATE_GUEST_CANCELLED_AFTER_FIRST || '',
-        GUEST_CANCELLED_HOST_NOTIFY: import.meta.env.VITE_TEMPLATE_GUEST_CANCELLED_HOST_NOTIFY || '',
-        GUEST_CANCELLED_BEFORE_FIRST: import.meta.env.VITE_TEMPLATE_GUEST_CANCELLED_BEFORE_FIRST || '',
-        GUEST_CANCELLED_BEFORE_HOST_NOTIFY: import.meta.env.VITE_TEMPLATE_GUEST_CANCELLED_BEFORE_HOST_NOTIFY || '',
-    }
+        HOST_REGISTERED: templateIds.HOST_REGISTERED || '',
+        GUEST_APPLIED: templateIds.GUEST_APPLIED || '',
+        HOST_NEW_APPLICANT: templateIds.HOST_NEW_APPLICANT || '',
+        FIRST_MATCH_COMPLETE: templateIds.FIRST_MATCH_COMPLETE || '',
+        NOT_SELECTED: templateIds.NOT_SELECTED || '',
+        PAYMENT_REQUEST: templateIds.PAYMENT_REQUEST || '',
+        INFO_DELIVERED: templateIds.INFO_DELIVERED || '',
+        INFO_DENIED_CONTINUE: templateIds.INFO_DENIED_CONTINUE || '',
+        WAIT_OTHER_TEAM: templateIds.WAIT_OTHER_TEAM || '',
+        FINAL_PAYMENT_REQUEST: templateIds.FINAL_PAYMENT_REQUEST || '',
+        FINAL_MATCH_COMPLETE: templateIds.FINAL_MATCH_COMPLETE || '',
+        PROCESS_CANCELLED: templateIds.PROCESS_CANCELLED || '',
+        HOST_CANCELLED_ALL: templateIds.HOST_CANCELLED_ALL || '',
+        GUEST_CANCELLED_AFTER_FIRST: templateIds.GUEST_CANCELLED_AFTER_FIRST || '',
+        GUEST_CANCELLED_HOST_NOTIFY: templateIds.GUEST_CANCELLED_HOST_NOTIFY || '',
+        GUEST_CANCELLED_BEFORE_FIRST: templateIds.GUEST_CANCELLED_BEFORE_FIRST || '',
+        GUEST_CANCELLED_BEFORE_HOST_NOTIFY: templateIds.GUEST_CANCELLED_BEFORE_HOST_NOTIFY || '',
+
+        // Additional templates
+        PUBLIC_ROOM_FIRST_MATCH: templateIds.PUBLIC_ROOM_FIRST_MATCH || '',
+        STUDENT_ID_REJECTED: templateIds.STUDENT_ID_REJECTED || '',
+        REFUND_GUIDE: templateIds.REFUND_GUIDE || '',
+        NO_REFUND_NOTICE: templateIds.NO_REFUND_NOTICE || '',
+        MATCH_REMINDER: templateIds.MATCH_REMINDER || '',
+        DECISION_TIME: templateIds.DECISION_TIME || '',
+    },
+    paymentLinkFirst: import.meta.env.VITE_PAYMENT_LINK_FIRST || '',
+    paymentAmountFirst: import.meta.env.VITE_PAYMENT_AMOUNT_FIRST || '',
+    paymentLinkFinal: import.meta.env.VITE_PAYMENT_LINK_FINAL || '',
+    paymentAmountFinal: import.meta.env.VITE_PAYMENT_AMOUNT_FINAL || '',
 };
 
 export const fetchSystemConfig = async (): Promise<SystemConfig> => {
@@ -34,12 +51,17 @@ export const fetchSystemConfig = async (): Promise<SystemConfig> => {
             .select('key, value');
 
         if (error || !data) {
-            console.warn("Failed to fetch system config from DB, using env vars:", error);
-            return envConfig;
+            console.warn("Failed to fetch system config from DB, using default config:", error);
+            return defaultConfig;
         }
 
-        const config = { templates: { ...envConfig.templates } };
-
+        const config: SystemConfig = {
+            templates: { ...defaultConfig.templates },
+            paymentLinkFirst: defaultConfig.paymentLinkFirst,
+            paymentAmountFirst: defaultConfig.paymentAmountFirst,
+            paymentLinkFinal: defaultConfig.paymentLinkFinal,
+            paymentAmountFinal: defaultConfig.paymentAmountFinal,
+        };
 
         data.forEach(row => {
             if (row.key.startsWith('template_')) {
@@ -52,12 +74,20 @@ export const fetchSystemConfig = async (): Promise<SystemConfig> => {
                         config.templates[foundKey] = row.value;
                     }
                 }
+            } else if (row.key === 'payment_link_first') {
+                config.paymentLinkFirst = row.value;
+            } else if (row.key === 'payment_amount_first') {
+                config.paymentAmountFirst = row.value;
+            } else if (row.key === 'payment_link_final') {
+                config.paymentLinkFinal = row.value;
+            } else if (row.key === 'payment_amount_final') {
+                config.paymentAmountFinal = row.value;
             }
         });
 
         return config;
     } catch (err) {
         console.error("Error in fetchSystemConfig:", err);
-        return envConfig;
+        return defaultConfig;
     }
 };

@@ -5,7 +5,9 @@
  * 프로덕션: 실제 Solapi API 호출
  */
 
-// ✅ 환경 변수에서 설정 로드
+// ✅ JSON 파일에서 템플릿 ID 로드
+import templateIds from '../templates/templates.json';
+
 const SOLAPI_API_KEY = import.meta.env.VITE_SOLAPI_API_KEY || '';
 const SOLAPI_API_SECRET = import.meta.env.VITE_SOLAPI_API_SECRET || '';
 const SOLAPI_PF_ID = import.meta.env.VITE_SOLAPI_PF_ID || '';
@@ -17,30 +19,36 @@ const IS_TEST_MODE = !SOLAPI_API_KEY || SOLAPI_API_KEY === 'your_api_key_here' |
 // 알림톡 템플릿 ID (mutable for DB override)
 export let TEMPLATES = {
     // 01~03: 예약/등록 단계
-    HOST_REGISTERED: import.meta.env.VITE_TEMPLATE_HOST_REGISTERED || 'template_01',
-    GUEST_APPLIED: import.meta.env.VITE_TEMPLATE_GUEST_APPLIED || 'template_02',
-    HOST_NEW_APPLICANT: import.meta.env.VITE_TEMPLATE_HOST_NEW_APPLICANT || 'template_03',
+    HOST_REGISTERED: templateIds.HOST_REGISTERED || 'template_01',
+    GUEST_APPLIED: templateIds.GUEST_APPLIED || 'template_02',
+    HOST_NEW_APPLICANT: templateIds.HOST_NEW_APPLICANT || 'template_03',
     // 04~05: 1차 매칭 단계
-    FIRST_MATCH_COMPLETE: import.meta.env.VITE_TEMPLATE_FIRST_MATCH_COMPLETE || 'template_04',
-    NOT_SELECTED: import.meta.env.VITE_TEMPLATE_NOT_SELECTED || 'template_05',
+    FIRST_MATCH_COMPLETE: templateIds.FIRST_MATCH_COMPLETE || 'template_04',
+    NOT_SELECTED: templateIds.NOT_SELECTED || 'template_05',
     // 06~09: 정보 교환 단계
-    PAYMENT_REQUEST: import.meta.env.VITE_TEMPLATE_PAYMENT_REQUEST || 'template_06',
-    INFO_DELIVERED: import.meta.env.VITE_TEMPLATE_INFO_DELIVERED || 'template_07',
-    INFO_DENIED_CONTINUE: import.meta.env.VITE_TEMPLATE_INFO_DENIED_CONTINUE || 'template_08',
-    WAIT_OTHER_TEAM: import.meta.env.VITE_TEMPLATE_WAIT_OTHER_TEAM || 'template_09',
+    PAYMENT_REQUEST: templateIds.PAYMENT_REQUEST || 'template_06',
+    INFO_DELIVERED: templateIds.INFO_DELIVERED || 'template_07',
+    INFO_DENIED_CONTINUE: templateIds.INFO_DENIED_CONTINUE || 'template_08',
+    WAIT_OTHER_TEAM: templateIds.WAIT_OTHER_TEAM || 'template_09',
     // 10~11: 최종 매칭 단계
-    FINAL_PAYMENT_REQUEST: import.meta.env.VITE_TEMPLATE_FINAL_PAYMENT_REQUEST || 'template_10',
-    FINAL_MATCH_COMPLETE: import.meta.env.VITE_TEMPLATE_FINAL_MATCH_COMPLETE || 'template_11',
+    FINAL_PAYMENT_REQUEST: templateIds.FINAL_PAYMENT_REQUEST || 'template_10',
+    FINAL_MATCH_COMPLETE: templateIds.FINAL_MATCH_COMPLETE || 'template_11',
     // 12~17: 취소 단계
-    PROCESS_CANCELLED: import.meta.env.VITE_TEMPLATE_PROCESS_CANCELLED || 'template_12',
-    HOST_CANCELLED_ALL: import.meta.env.VITE_TEMPLATE_HOST_CANCELLED_ALL || 'template_13',
-    GUEST_CANCELLED_AFTER_FIRST: import.meta.env.VITE_TEMPLATE_GUEST_CANCELLED_AFTER_FIRST || 'template_14',
-    GUEST_CANCELLED_HOST_NOTIFY: import.meta.env.VITE_TEMPLATE_GUEST_CANCELLED_HOST_NOTIFY || 'template_15',
-    GUEST_CANCELLED_BEFORE_FIRST: import.meta.env.VITE_TEMPLATE_GUEST_CANCELLED_BEFORE_FIRST || 'template_16',
-    GUEST_CANCELLED_BEFORE_HOST_NOTIFY: import.meta.env.VITE_TEMPLATE_GUEST_CANCELLED_BEFORE_HOST_NOTIFY || 'template_17',
+    PROCESS_CANCELLED: templateIds.PROCESS_CANCELLED || 'template_12',
+    HOST_CANCELLED_ALL: templateIds.HOST_CANCELLED_ALL || 'template_13',
+    GUEST_CANCELLED_AFTER_FIRST: templateIds.GUEST_CANCELLED_AFTER_FIRST || 'template_14',
+    GUEST_CANCELLED_HOST_NOTIFY: templateIds.GUEST_CANCELLED_HOST_NOTIFY || 'template_15',
+    GUEST_CANCELLED_BEFORE_FIRST: templateIds.GUEST_CANCELLED_BEFORE_FIRST || 'template_16',
+    GUEST_CANCELLED_BEFORE_HOST_NOTIFY: templateIds.GUEST_CANCELLED_BEFORE_HOST_NOTIFY || 'template_17',
     // 18~19: 추가 알림
-    REFUND_COMPLETE: import.meta.env.VITE_TEMPLATE_REFUND_COMPLETE || 'template_18',
-    MATCH_REMINDER: import.meta.env.VITE_TEMPLATE_MATCH_REMINDER || 'template_19',
+    REFUND_GUIDE: templateIds.REFUND_GUIDE || 'template_18',
+    MATCH_REMINDER: templateIds.MATCH_REMINDER || 'template_19',
+
+    // Additional templates from JSON not previously in TEMPLATES
+    PUBLIC_ROOM_FIRST_MATCH: templateIds.PUBLIC_ROOM_FIRST_MATCH || '',
+    STUDENT_ID_REJECTED: templateIds.STUDENT_ID_REJECTED || '',
+    NO_REFUND_NOTICE: templateIds.NO_REFUND_NOTICE || '',
+    DECISION_TIME: templateIds.DECISION_TIME || '',
 };
 
 // Runtime update function for templates
@@ -69,7 +77,7 @@ const TEMPLATE_NAMES: Record<string, string> = {
     [TEMPLATES.GUEST_CANCELLED_HOST_NOTIFY]: '15_게스트_1차후취소_호스트알림',
     [TEMPLATES.GUEST_CANCELLED_BEFORE_FIRST]: '16_게스트_1차전취소_본인알림',
     [TEMPLATES.GUEST_CANCELLED_BEFORE_HOST_NOTIFY]: '17_게스트_1차전취소_호스트알림',
-    [TEMPLATES.REFUND_COMPLETE]: '18_환불완료_안내',
+    [TEMPLATES.REFUND_GUIDE]: '18_환불완료_안내',
     [TEMPLATES.MATCH_REMINDER]: '19_매칭_리마인더_D-1',
 };
 
@@ -416,7 +424,7 @@ export async function sendRefundCompleteNotification(
     bank: string,
     account: string
 ): Promise<NotificationResult> {
-    return sendKakaoNotification(phone, TEMPLATES.REFUND_COMPLETE, {
+    return sendKakaoNotification(phone, TEMPLATES.REFUND_GUIDE, {
         '#{date}': date,
         '#{time}': time,
         '#{amount}': amount,

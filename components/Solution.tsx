@@ -1,20 +1,7 @@
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Timer, HeartHandshake, Lock, Sparkles, RefreshCcw, Users, ShieldCheck, Instagram } from 'lucide-react';
-import { generateIceBreaker } from '../services/geminiService';
+import React from 'react';
+import { Timer, Users, ShieldCheck, Instagram } from 'lucide-react';
 
 const Solution: React.FC = () => {
-  const [iceBreaker, setIceBreaker] = useState<string>("버튼을 눌러 주제를 생성해보세요!");
-  const [loading, setLoading] = useState(false);
-
-  const handleGenerate = async () => {
-    setLoading(true);
-    const themes = ["여행", "음식", "취미", "연애관", "MBTI", "대학생활"];
-    const randomTheme = themes[Math.floor(Math.random() * themes.length)];
-    const result = await generateIceBreaker(randomTheme);
-    setIceBreaker(result);
-    setLoading(false);
-  };
 
   return (
     <section id="solution" className="py-24 bg-gray-50 overflow-hidden">
