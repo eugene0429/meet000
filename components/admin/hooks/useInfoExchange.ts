@@ -40,6 +40,17 @@ interface UseInfoExchangeReturn {
         systemConfig: SystemConfig | null,
         onSuccess: () => Promise<void>
     ) => Promise<void>;
+    // 공개방 전용 함수
+    updateInfoExchangeStatus: (
+        teamId: string,
+        status: 'PENDING' | 'PROCEED' | 'STOP' | null,
+        onSuccess: () => Promise<void>
+    ) => Promise<void>;
+    handlePublicRoomCancelMatch: (
+        slot: AdminSlot,
+        selectedDate: Date,
+        onSuccess: () => Promise<void>
+    ) => Promise<void>;
 }
 
 /**
@@ -95,8 +106,25 @@ export function useInfoExchange(
         if (!host.wantsInfo && !guest.wantsInfo) {
             setProcessing(true);
             try {
-                await sendFinalPaymentRequestNotification(host.phone, dateStr, timeStr, '10000', 'https://pay.example.com/final');
-                await sendFinalPaymentRequestNotification(guest.phone, dateStr, timeStr, '10000', 'https://pay.example.com/final');
+                const hostPrice = host.gender === 'MALE' ? (slot.malePrice ?? 10000) : (slot.femalePrice ?? 10000);
+                const guestPrice = guest.gender === 'MALE' ? (slot.malePrice ?? 10000) : (slot.femalePrice ?? 10000);
+
+                await sendFinalPaymentRequestNotification(
+                    host.phone,
+                    dateStr,
+                    timeStr,
+                    hostPrice.toLocaleString(),
+                    host.headCount.toString(),
+                    (hostPrice * host.headCount).toLocaleString()
+                );
+                await sendFinalPaymentRequestNotification(
+                    guest.phone,
+                    dateStr,
+                    timeStr,
+                    guestPrice.toLocaleString(),
+                    guest.headCount.toString(),
+                    (guestPrice * guest.headCount).toLocaleString()
+                );
 
                 await updateTeam(host.id!, { process_step: 'READY_FOR_FINAL' });
                 await updateTeam(guest.id!, { process_step: 'READY_FOR_FINAL' });
@@ -244,10 +272,25 @@ export function useInfoExchange(
 
                 // 상대팀 상태에 따라 최종 결제 안내
                 if (otherTeam.processStep === 'READY_FOR_FINAL' || otherTeam.processStep === 'WAITING_OTHER') {
-                    const amount = systemConfig?.paymentAmountFinal || '10000';
-                    const link = systemConfig?.paymentLinkFinal || 'https://pay.example.com/final';
-                    await sendFinalPaymentRequestNotification(host.phone, dateStr, timeStr, amount, link);
-                    await sendFinalPaymentRequestNotification(guest.phone, dateStr, timeStr, amount, link);
+                    const hostPrice = host.gender === 'MALE' ? (slot.malePrice ?? 10000) : (slot.femalePrice ?? 10000);
+                    const guestPrice = guest.gender === 'MALE' ? (slot.malePrice ?? 10000) : (slot.femalePrice ?? 10000);
+
+                    await sendFinalPaymentRequestNotification(
+                        host.phone,
+                        dateStr,
+                        timeStr,
+                        hostPrice.toLocaleString(),
+                        host.headCount.toString(),
+                        (hostPrice * host.headCount).toLocaleString()
+                    );
+                    await sendFinalPaymentRequestNotification(
+                        guest.phone,
+                        dateStr,
+                        timeStr,
+                        guestPrice.toLocaleString(),
+                        guest.headCount.toString(),
+                        (guestPrice * guest.headCount).toLocaleString()
+                    );
                     showAlert("✅ 양팀 모두 진행에 동의하셨습니다!\n최종 매칭 결제 안내가 발송되었습니다.");
                 } else {
                     showAlert("✅ 진행 의사 확인 완료!\n상대팀의 결정을 기다리고 있습니다.");
@@ -277,11 +320,66 @@ export function useInfoExchange(
         }
     }, [showAlert]);
 
+    // 공개방 전용: 정보 교환 상태 업데이트
+    const updateInfoExchangeStatus = useCallback(async (
+        teamId: string,
+        status: 'PENDING' | 'PROCEED' | 'STOP' | null,
+        onSuccess: () => Promise<void>
+    ) => {
+        try {
+            const result = await updateTeam(teamId, { info_exchange_status: status });
+            if (!result.success) throw new Error(result.error);
+            await onSuccess();
+        } catch (err: any) {
+            showAlert(`상태 업데이트 실패: ${err.message}`);
+        }
+    }, [showAlert]);
+
+    // 공개방 전용: 한쪽이 STOP 선택 시 매칭 취소 처리
+    const handlePublicRoomCancelMatch = useCallback(async (
+        slot: AdminSlot,
+        selectedDate: Date,
+        onSuccess: () => Promise<void>
+    ) => {
+        setProcessing(true);
+        try {
+            const host = slot.hostTeam;
+            const guest = slot.guestTeams.find(g => g.status === 'FIRST_CONFIRMED');
+            if (!host || !guest) return;
+
+            const dateStr = formatDateForNotification(selectedDate);
+            const timeStr = slot.time;
+
+            // 양팀에게 취소 알림 발송
+            await sendProcessCancelledNotification(host.phone, dateStr, timeStr);
+            await sendProcessCancelledNotification(guest.phone, dateStr, timeStr);
+
+            // 해당 슬롯의 모든 팀 삭제
+            const allTeamIds = [
+                slot.hostTeam?.id,
+                ...slot.guestTeams.map(g => g.id)
+            ].filter(Boolean) as string[];
+
+            if (allTeamIds.length > 0) {
+                await deleteTeamsBulk(allTeamIds);
+            }
+
+            showAlert("❌ 한쪽이 중단을 선택하여 매칭이 취소되었습니다.\n슬롯이 초기화되었습니다.");
+            await onSuccess();
+        } catch (err: any) {
+            showAlert(`취소 처리 실패: ${err.message}`);
+        } finally {
+            setProcessing(false);
+        }
+    }, [showAlert]);
+
     return {
         processing,
         updateTeamInfoPreference,
         handleNextStep,
         handlePaymentConfirm,
         handleConfirmDecision,
+        updateInfoExchangeStatus,
+        handlePublicRoomCancelMatch,
     };
 }

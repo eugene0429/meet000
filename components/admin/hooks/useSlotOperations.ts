@@ -16,6 +16,11 @@ interface UseSlotOperationsReturn {
         newMax: number,
         onSuccess: () => Promise<void>
     ) => Promise<void>;
+    updatePublicRoomExtraPrice: (
+        slot: AdminSlot,
+        price: number,
+        onSuccess: () => Promise<void>
+    ) => Promise<void>;
 }
 
 /**
@@ -137,10 +142,47 @@ export function useSlotOperations(
         }
     }, [showAlert]);
 
+    // 공개방 추가 금액 업데이트
+    const updatePublicRoomExtraPrice = useCallback(async (
+        slot: AdminSlot,
+        price: number,
+        onSuccess: () => Promise<void>
+    ) => {
+        try {
+            const configResult = await getDailyConfig(slot.date);
+            const currentConfig = configResult.data;
+
+            const currentSlotConfigs = currentConfig?.slot_configs || {};
+            const thisSlotConfig = currentSlotConfigs[slot.time] || {};
+
+            thisSlotConfig.publicRoomExtraPrice = price;
+
+            const newSlotConfigs = {
+                ...currentSlotConfigs,
+                [slot.time]: thisSlotConfig
+            };
+
+            const result = await upsertDailyConfig(slot.date, {
+                slotConfigs: newSlotConfigs,
+                openTimes: currentConfig?.open_times || [],
+                maxApplicants: currentConfig?.max_applicants || 3
+            });
+
+            if (!result.success) {
+                showAlert(`공개방 추가금액 설정 실패: ${result.error}`);
+            } else {
+                await onSuccess();
+            }
+        } catch (err: any) {
+            showAlert(`공개방 추가금액 설정 실패: ${err.message}`);
+        }
+    }, [showAlert]);
+
     return {
         processing,
         toggleSlotOpen,
         updateSlotPrice,
         updateMaxApplicants,
+        updatePublicRoomExtraPrice,
     };
 }

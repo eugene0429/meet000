@@ -81,3 +81,41 @@ export async function getDailyConfig(dateStr: string): Promise<AdminApiResponse>
     });
     return response.json();
 }
+
+// 일별 팀 데이터 조회 (RLS 우회)
+export async function getTeamsByDate(dateStr: string): Promise<AdminApiResponse> {
+    const response = await fetch(`${API_BASE}/admin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'get-teams-by-date', dateStr }),
+    });
+    return response.json();
+}
+
+// 게스트 알림 발송을 위한 데이터 조회 (RLS 우회)
+export async function getGuestNotificationData(teamId: string): Promise<AdminApiResponse> {
+    try {
+        const response = await fetch(`${API_BASE}/admin`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'get-guest-notification-data', teamId }),
+        });
+
+        const result = await response.json();
+
+        // HTTP 에러 상태인 경우 success: false 반환
+        if (!response.ok) {
+            return {
+                success: false,
+                error: result.error || `HTTP ${response.status} error`
+            };
+        }
+
+        return result;
+    } catch (error: any) {
+        return {
+            success: false,
+            error: error.message || 'Network error'
+        };
+    }
+}

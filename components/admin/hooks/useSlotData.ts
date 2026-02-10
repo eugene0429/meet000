@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { supabase } from '../../../lib/supabaseClient';
+import { getTeamsByDate, getDailyConfig } from '../../../lib/adminApiClient';
 import { AdminSlot, SlotConfig } from '../types';
 import { TIMES, DEFAULT_MAX_APPLICANTS } from '../constants';
 import { mapTeamRawToInfo, formatDateToString } from '../utils/mapTeamData';
@@ -24,20 +24,14 @@ export function useSlotData(): UseSlotDataReturn {
         const dateStr = formatDateToString(date);
 
         try {
-            // 해당 날짜의 팀 데이터 조회
-            const { data: teamsRaw, error: teamErr } = await supabase
-                .from('teams')
-                .select('*')
-                .eq('date', dateStr);
+            // 해당 날짜의 팀 데이터 조회 (Admin API 사용)
+            const teamsResult = await getTeamsByDate(dateStr);
+            if (!teamsResult.success) throw new Error(teamsResult.error);
+            const teamsRaw = teamsResult.data;
 
-            if (teamErr) throw teamErr;
-
-            // 해당 날짜의 설정 조회
-            const { data: dailyConfig } = await supabase
-                .from('daily_config')
-                .select('*')
-                .eq('date', dateStr)
-                .single();
+            // 해당 날짜의 설정 조회 (Admin API 사용)
+            const configResult = await getDailyConfig(dateStr);
+            const dailyConfig = configResult.data;
 
             const openTimes: string[] = dailyConfig?.open_times || [];
             const slotConfigs: Record<string, SlotConfig> = dailyConfig?.slot_configs || {};
@@ -49,6 +43,7 @@ export function useSlotData(): UseSlotDataReturn {
             // 슬롯 구성
             const slots: AdminSlot[] = TIMES.map((time) => {
                 const thisSlotConfig = slotConfigs[time] || {};
+
                 const hostTeam = teams.find((t) => t.time === time && t.role === 'HOST');
                 const guestTeams = teams.filter((t) => t.time === time && t.role === 'GUEST');
 
@@ -76,6 +71,8 @@ export function useSlotData(): UseSlotDataReturn {
                     max_applicants: thisSlotConfig.maxApplicants ?? defaultMaxApplicants,
                     malePrice: thisSlotConfig.malePrice,
                     femalePrice: thisSlotConfig.femalePrice,
+                    publicRoomExtraPrice: thisSlotConfig.publicRoomExtraPrice,  // 슬롯별 공개방 추가금액
+                    isPublicRoom: hostTeam?.isPublicRoom || false,  // 호스트의 공개방 설정
                     hostTeam,
                     guestTeams,
                 };

@@ -122,10 +122,92 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     .from('daily_config')
                     .select('*')
                     .eq('date', dateStr)
+                    .maybeSingle();  // .maybeSingle() 사용 (데이터가 없을 수 있음)
+
+                return res.status(200).json({ success: true, data: data || null });
+            }
+
+            case 'get-teams-by-date': {
+                if (!dateStr) {
+                    return res.status(400).json({ error: 'dateStr required' });
+                }
+                const { data, error } = await supabaseAdmin
+                    .from('teams')
+                    .select('*, members(*)')
+                    .eq('date', dateStr);
+
+                if (error) throw error;
+                return res.status(200).json({ success: true, data: data || [] });
+            }
+
+            case 'get-guest-notification-data': {
+                if (!teamId) {
+                    return res.status(400).json({ error: 'teamId required' });
+                }
+
+                console.log('get-guest-notification-data called with teamId:', teamId);
+
+                // 게스트 팀 정보 조회
+                const { data: guestTeam, error: guestError } = await supabaseAdmin
+                    .from('teams')
+                    .select('*')
+                    .eq('id', teamId)
                     .single();
 
-                // single()은 데이터가 없으면 에러를 던지므로 무시
-                return res.status(200).json({ success: true, data: data || null });
+                if (guestError) {
+                    console.error('Guest team query error:', guestError);
+                    return res.status(404).json({ error: `Guest team not found: ${guestError.message}` });
+                }
+
+                if (!guestTeam) {
+                    console.error('Guest team is null for teamId:', teamId);
+                    return res.status(404).json({ error: 'Guest team not found (null)' });
+                }
+
+                console.log('Guest team found:', guestTeam.id, guestTeam.date, guestTeam.time);
+
+                // 호스트 팀 정보 조회
+                const { data: hostTeam, error: hostError } = await supabaseAdmin
+                    .from('teams')
+                    .select('*')
+                    .eq('date', guestTeam.date)
+                    .eq('time', guestTeam.time)
+                    .eq('role', 'HOST')
+                    .maybeSingle();  // .single() 대신 .maybeSingle() 사용 (호스트가 없을 수 있음)
+
+
+                // 게스트 멤버 정보 조회
+                const { data: guestMembers } = await supabaseAdmin
+                    .from('members')
+                    .select('*')
+                    .eq('team_id', teamId);
+
+                // 게스트 수 계산
+                const { count } = await supabaseAdmin
+                    .from('teams')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('date', guestTeam.date)
+                    .eq('time', guestTeam.time)
+                    .eq('role', 'GUEST')
+                    .neq('status', 'CANCELLED');
+
+                // daily_config 조회
+                const { data: dailyConfig } = await supabaseAdmin
+                    .from('daily_config')
+                    .select('max_applicants')
+                    .eq('date', guestTeam.date)
+                    .maybeSingle();  // .single() 대신 .maybeSingle() 사용 (설정이 없을 수 있음)
+
+
+                return res.status(200).json({
+                    success: true,
+                    data: {
+                        hostTeam: hostTeam || null,
+                        guestMembers: guestMembers || [],
+                        guestCount: count || 0,
+                        maxApplicants: dailyConfig?.max_applicants || 3
+                    }
+                });
             }
 
             default:

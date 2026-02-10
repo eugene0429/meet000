@@ -16,6 +16,8 @@ export interface AdminSlot {
     max_applicants: number;
     malePrice?: number;
     femalePrice?: number;
+    isPublicRoom?: boolean;  // 공개방 여부 (호스트팀에서 가져옴)
+    publicRoomExtraPrice?: number;  // 공개방 추가 금액 (슬롯 설정)
     hostTeam?: TeamInfo;
     guestTeams: TeamInfo[];
 }
@@ -40,4 +42,5 @@ export interface SlotConfig {
     malePrice?: number;
     femalePrice?: number;
     maxApplicants?: number;
+    publicRoomExtraPrice?: number;  // 공개방 추가 금액
 }

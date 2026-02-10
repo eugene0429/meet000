@@ -38,6 +38,9 @@ export let TEMPLATES = {
     GUEST_CANCELLED_HOST_NOTIFY: import.meta.env.VITE_TEMPLATE_GUEST_CANCELLED_HOST_NOTIFY || 'template_15',
     GUEST_CANCELLED_BEFORE_FIRST: import.meta.env.VITE_TEMPLATE_GUEST_CANCELLED_BEFORE_FIRST || 'template_16',
     GUEST_CANCELLED_BEFORE_HOST_NOTIFY: import.meta.env.VITE_TEMPLATE_GUEST_CANCELLED_BEFORE_HOST_NOTIFY || 'template_17',
+    // 18~19: 추가 알림
+    REFUND_COMPLETE: import.meta.env.VITE_TEMPLATE_REFUND_COMPLETE || 'template_18',
+    MATCH_REMINDER: import.meta.env.VITE_TEMPLATE_MATCH_REMINDER || 'template_19',
 };
 
 // Runtime update function for templates
@@ -66,6 +69,8 @@ const TEMPLATE_NAMES: Record<string, string> = {
     [TEMPLATES.GUEST_CANCELLED_HOST_NOTIFY]: '15_게스트_1차후취소_호스트알림',
     [TEMPLATES.GUEST_CANCELLED_BEFORE_FIRST]: '16_게스트_1차전취소_본인알림',
     [TEMPLATES.GUEST_CANCELLED_BEFORE_HOST_NOTIFY]: '17_게스트_1차전취소_호스트알림',
+    [TEMPLATES.REFUND_COMPLETE]: '18_환불완료_안내',
+    [TEMPLATES.MATCH_REMINDER]: '19_매칭_리마인더_D-1',
 };
 
 interface TeamInfo {
@@ -174,11 +179,13 @@ async function sendKakaoNotification(
 export async function sendHostRegisteredNotification(
     phone: string,
     date: string,
-    time: string
+    time: string,
+    representativeId: string
 ): Promise<NotificationResult> {
     return sendKakaoNotification(phone, TEMPLATES.HOST_REGISTERED, {
         '#{date}': date,
         '#{time}': time,
+        '#{representative_id}': representativeId,
     });
 }
 
@@ -187,21 +194,24 @@ export async function sendGuestAppliedNotification(
     phone: string,
     date: string,
     time: string,
-    hostUniversity: string
+    hostUniversity: string,
+    representativeId: string
 ): Promise<NotificationResult> {
     return sendKakaoNotification(phone, TEMPLATES.GUEST_APPLIED, {
         '#{date}': date,
         '#{time}': time,
         '#{host_university}': hostUniversity,
+        '#{representative_id}': representativeId,
     });
 }
 
 // 03. 호스트에게 새 신청자 알림
 export async function sendHostNewApplicantNotification(
     hostPhone: string,
-    guestInfo: TeamInfo,
+    guestInfo: TeamInfo & { representativeId?: string },
     date: string,
-    time: string
+    time: string,
+    hostRepresentativeId: string
 ): Promise<NotificationResult> {
     return sendKakaoNotification(hostPhone, TEMPLATES.HOST_NEW_APPLICANT, {
         '#{date}': date,
@@ -210,6 +220,8 @@ export async function sendHostNewApplicantNotification(
         '#{guest_gender}': guestInfo.gender === 'MALE' ? '남성' : '여성',
         '#{guest_count}': guestInfo.headCount.toString(),
         '#{guest_avg_age}': guestInfo.avgAge.toString(),
+        '#{guest_representative_id}': guestInfo.representativeId || '',
+        '#{representative_id}': hostRepresentativeId,
     });
 }
 
@@ -390,6 +402,36 @@ export async function sendGuestCancelledBeforeHostNotifyNotification(
     time: string
 ): Promise<NotificationResult> {
     return sendKakaoNotification(phone, TEMPLATES.GUEST_CANCELLED_BEFORE_HOST_NOTIFY, {
+        '#{date}': date,
+        '#{time}': time,
+    });
+}
+
+// 18. 환불 처리 안내
+export async function sendRefundCompleteNotification(
+    phone: string,
+    date: string,
+    time: string,
+    amount: string,
+    bank: string,
+    account: string
+): Promise<NotificationResult> {
+    return sendKakaoNotification(phone, TEMPLATES.REFUND_COMPLETE, {
+        '#{date}': date,
+        '#{time}': time,
+        '#{amount}': amount,
+        '#{bank}': bank,
+        '#{account}': account,
+    });
+}
+
+// 19. 매칭 D-1 리마인더
+export async function sendMatchReminderNotification(
+    phone: string,
+    date: string,
+    time: string
+): Promise<NotificationResult> {
+    return sendKakaoNotification(phone, TEMPLATES.MATCH_REMINDER, {
         '#{date}': date,
         '#{time}': time,
     });

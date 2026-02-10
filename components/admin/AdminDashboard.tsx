@@ -2,7 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Lock, X, Loader2, ChevronLeft, ChevronRight,
-    Calendar as CalendarIcon, Users, Check, Trash2, FileText, AlertCircle, AlertTriangle
+    Calendar as CalendarIcon, Users, Check, Trash2, FileText,
+    AlertCircle, AlertTriangle, LogOut, Settings, RefreshCw,
+    ChevronUp, ChevronDown
 } from 'lucide-react';
 
 import { AdminDashboardProps, AdminSlot, ModalConfig, DeleteContext } from './types';
@@ -23,20 +25,27 @@ import { TeamInfo } from '../../types';
 import { formatDateForNotification } from './utils/mapTeamData';
 
 // Inline TeamCard component
-const TeamCard = ({ team, onVerify }: { team: TeamInfo; onVerify: () => void }) => {
+const TeamCard = ({ team, onVerify, onReject }: { team: TeamInfo; onVerify: () => void; onReject: () => void }) => {
+    const [showMembers, setShowMembers] = useState(false);
+
     return (
         <div className={`bg-white border rounded-xl p-4 shadow-sm ${team.status === 'MATCH_CONFIRMED' ? 'border-brand-500 ring-2 ring-brand-100' : 'border-gray-200'}`}>
             <div className="flex justify-between items-start mb-2">
                 <div>
                     <span className={`text-xs px-1.5 py-0.5 rounded font-bold ${team.gender === 'MALE' ? 'bg-blue-50 text-blue-600' : 'bg-pink-50 text-pink-600'}`}>{team.gender}</span>
-                    <h4 className="font-bold text-sm mt-1">{team.university} ({team.headCount}명)</h4>
+                    <h4 className="font-bold text-sm mt-1">
+                        {team.representativeId}, {team.university} {team.members?.[0]?.major} ({team.headCount}명)
+                    </h4>
                 </div>
                 {team.isVerified ? (
                     <div className="flex items-center text-green-600 text-xs font-bold gap-0.5">
                         <Check size={14} /> 승인됨
                     </div>
                 ) : (
-                    <button onClick={onVerify} className="bg-orange-100 text-orange-600 text-xs px-2 py-1 rounded-md font-bold animate-pulse hover:bg-orange-200 cursor-pointer">승인필요</button>
+                    <div className="flex gap-1">
+                        <button onClick={onVerify} className="bg-blue-100 text-blue-600 text-xs px-2 py-1 rounded-md font-bold hover:bg-blue-200 cursor-pointer">승인</button>
+                        <button onClick={onReject} className="bg-red-100 text-red-600 text-xs px-2 py-1 rounded-md font-bold hover:bg-red-200 cursor-pointer">반려</button>
+                    </div>
                 )}
             </div>
             <div className="text-xs text-gray-500 space-y-1">
@@ -45,12 +54,21 @@ const TeamCard = ({ team, onVerify }: { team: TeamInfo; onVerify: () => void }) 
                     <span className="flex items-center gap-1"><FileText size={12} /> 학생증</span>
                     <a href={team.studentIdUrl} target="_blank" rel="noreferrer" className="underline text-blue-500 hover:text-blue-700">보기</a>
                 </div>
-                {team.members && team.members.length > 0 && (
-                    <div className="pt-2 mt-2 border-t border-gray-100">
+
+                <button
+                    onClick={() => setShowMembers(!showMembers)}
+                    className="mt-2 text-xs text-gray-400 underline hover:text-gray-600 flex items-center gap-1"
+                >
+                    {showMembers ? '멤버 정보 접기' : '멤버 상세 보기'}
+                    {showMembers ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                </button>
+
+                {showMembers && team.members && team.members.length > 0 && (
+                    <div className="pt-2 mt-1 border-t border-gray-100 transition-all">
                         <p className="text-[10px] text-gray-400 mb-1">멤버 구성:</p>
                         {team.members.map((m, idx) => (
-                            <div key={idx} className="flex justify-between text-[11px] text-gray-600">
-                                <span>{m.age}세 {m.major}</span>
+                            <div key={idx} className="flex justify-between text-[11px] text-gray-600 mb-0.5">
+                                <span>{idx + 1}. {m.university} {m.major} ({m.age}세)</span>
                             </div>
                         ))}
                     </div>
@@ -80,6 +98,14 @@ export function AdminDashboard({ isOpen, onClose }: AdminDashboardProps) {
     });
     const [rejectionReason, setRejectionReason] = useState('');
 
+    // Final Cancel Context
+    const [finalCancelModalOpen, setFinalCancelModalOpen] = useState(false);
+    const [finalCancelContext, setFinalCancelContext] = useState<{
+        teamId: string | null;
+        slot: AdminSlot | null;
+        hoursRemaining: number;
+    }>({ teamId: null, slot: null, hoursRemaining: 0 });
+
     // Modal state
     const [modalConfig, setModalConfig] = useState<ModalConfig>({
         isOpen: false,
@@ -108,10 +134,10 @@ export function AdminDashboard({ isOpen, onClose }: AdminDashboardProps) {
     // Use custom hooks
     const { isAuthenticated, password, setPassword, setIsAuthenticated } = useAdminAuth();
     const { dailySlots, loading, fetchDailyData } = useSlotData();
-    const { processing: slotProcessing, toggleSlotOpen, updateSlotPrice, updateMaxApplicants } = useSlotOperations(showAlert);
-    const { processing: teamProcessing, executeVerify, confirmReject: teamConfirmReject } = useTeamOperations(showAlert);
+    const { processing: slotProcessing, toggleSlotOpen, updateSlotPrice, updateMaxApplicants, updatePublicRoomExtraPrice } = useSlotOperations(showAlert);
+    const { processing: teamProcessing, executeVerify, confirmReject: teamConfirmReject, rejectVerification, processFinalMatchCancellation } = useTeamOperations(showAlert);
     const { processing: matchProcessing, executeFirstMatch, executeFinalMatch, executeCancelFirstMatch } = useMatchingFlow(showAlert);
-    const { processing: infoProcessing, updateTeamInfoPreference, handleNextStep, handlePaymentConfirm, handleConfirmDecision } = useInfoExchange(showAlert);
+    const { processing: infoProcessing, updateTeamInfoPreference, handleNextStep, handlePaymentConfirm, handleConfirmDecision, updateInfoExchangeStatus, handlePublicRoomCancelMatch } = useInfoExchange(showAlert);
 
     const processing = slotProcessing || teamProcessing || matchProcessing || infoProcessing;
 
@@ -166,10 +192,43 @@ export function AdminDashboard({ isOpen, onClose }: AdminDashboardProps) {
         });
     }, [showConfirm, executeVerify, fetchDailyData, selectedDate]);
 
+    // New: Open Final Cancel Modal
+    const openFinalCancelModal = useCallback((teamId: string, slot: AdminSlot) => {
+        const now = new Date();
+        const [year, month, day] = slot.date.split('-').map(Number);
+        const [hour, minute] = slot.time.split(':').map(Number);
+        const slotDateTime = new Date(year, month - 1, day, hour, minute);
+
+        const diffMs = slotDateTime.getTime() - now.getTime();
+        const hoursRemaining = diffMs / (1000 * 60 * 60);
+
+        setFinalCancelContext({ teamId, slot, hoursRemaining });
+        setFinalCancelModalOpen(true);
+    }, []);
+
+    const confirmFinalCancel = useCallback(async () => {
+        if (!finalCancelContext.teamId || !finalCancelContext.slot) return;
+        await processFinalMatchCancellation(
+            finalCancelContext.teamId,
+            finalCancelContext.slot,
+            finalCancelContext.hoursRemaining,
+            () => fetchDailyData(selectedDate)
+        );
+        setFinalCancelModalOpen(false);
+    }, [finalCancelContext, processFinalMatchCancellation, fetchDailyData, selectedDate]);
+
     const openRejectModal = useCallback((teamId: string, teamType: 'HOST' | 'GUEST', slot: AdminSlot) => {
+        // Check if Final Match
+        const isFinalMatchState = slot.status === 'MATCH_CONFIRMED';
+
+        if (isFinalMatchState) {
+            openFinalCancelModal(teamId, slot);
+            return;
+        }
+
         setDeleteContext({ teamId, teamType, slot });
         setRejectModalOpen(true);
-    }, []);
+    }, [openFinalCancelModal]);
 
     const confirmReject = useCallback(async () => {
         await teamConfirmReject(
@@ -184,8 +243,14 @@ export function AdminDashboard({ isOpen, onClose }: AdminDashboardProps) {
 
     const handleFirstMatchClick = useCallback((slot: AdminSlot, selectedGuestId: string) => {
         if (!slot.hostTeam) return;
+
+        // 공개방 vs 비공개방에 따라 다른 메시지 표시
+        const confirmMessage = slot.isPublicRoom
+            ? `선택한 게스트와 1차 매칭을 확정합니다.\n\n📸 인스타그램 교환 단계로 진입합니다.\n\n양팀의 진행/중단 응답을 확인 후 최종 매칭을 진행하세요.`
+            : `선택한 게스트와 1차 매칭을 확정합니다.\n\n💰 최종 매칭 결제 안내가 발송됩니다.\n\n양팀 결제 확인 후 최종 매칭을 진행하세요.`;
+
         showConfirm(
-            `선택한 게스트와 1차 매칭을 확정합니다.\n\n📋 인스타 교환 단계로 진입합니다.\n\n정보 교환 의사를 확인한 후 최종 매칭을 진행하세요.`,
+            confirmMessage,
             async () => {
                 await executeFirstMatch(slot, selectedGuestId, selectedDate, () => fetchDailyData(selectedDate));
             }
@@ -195,7 +260,7 @@ export function AdminDashboard({ isOpen, onClose }: AdminDashboardProps) {
     const handleFinalMatchClick = useCallback((slot: AdminSlot, selectedGuestId: string) => {
         if (!slot.hostTeam) return;
         showConfirm(
-            "🎉 최종 매칭을 확정하시겠습니까?\n\n확정 시 선택되지 않은 다른 게스트들은 자동으로 삭제됩니다.",
+            "🎉 최종 매칭을 확정하시겠습니까?\n\n확정 시 양팀에게 매칭 완료 알림이 발송됩니다.",
             async () => {
                 await executeFinalMatch(slot, selectedGuestId, () => fetchDailyData(selectedDate));
             }
@@ -347,18 +412,23 @@ export function AdminDashboard({ isOpen, onClose }: AdminDashboardProps) {
                                                                 {slot.is_open ? 'OPEN' : 'CLOSED'}
                                                             </button>
                                                             {slot.is_open && (
-                                                                <div className="flex items-center gap-4 ml-4">
+                                                                <div className="flex items-center gap-4 ml-4 flex-wrap">
                                                                     <div className="flex items-center gap-2">
                                                                         <span className="text-xs text-gray-500 font-bold">최대 신청:</span>
                                                                         <input
                                                                             type="number"
                                                                             className="w-14 p-1 border border-gray-300 bg-white text-gray-900 rounded text-center text-xs focus:border-brand-500 outline-none"
-                                                                            value={slot.max_applicants}
-                                                                            onChange={(e) => updateMaxApplicants(slot, parseInt(e.target.value), () => fetchDailyData(selectedDate))}
+                                                                            defaultValue={slot.max_applicants}
+                                                                            onBlur={(e) => {
+                                                                                const val = parseInt(e.target.value);
+                                                                                if (!isNaN(val) && val !== slot.max_applicants) {
+                                                                                    updateMaxApplicants(slot, val, () => fetchDailyData(selectedDate));
+                                                                                }
+                                                                            }}
                                                                         />
                                                                         <span className="text-xs text-gray-400">팀</span>
                                                                     </div>
-                                                                    <div className="w-px h-6 bg-gray-300 mx-2"></div>
+                                                                    <div className="w-px h-6 bg-gray-300"></div>
                                                                     <div className="flex items-center gap-2">
                                                                         <span className="text-xs text-blue-600 font-bold">남:</span>
                                                                         <input
@@ -366,8 +436,13 @@ export function AdminDashboard({ isOpen, onClose }: AdminDashboardProps) {
                                                                             step="1000"
                                                                             placeholder={systemConfig?.paymentAmountFirst || "5000"}
                                                                             className="w-20 p-1 border border-gray-300 bg-white text-gray-900 rounded text-center text-xs focus:border-brand-500 outline-none"
-                                                                            value={slot.malePrice ?? ''}
-                                                                            onChange={(e) => updateSlotPrice(slot, 'male', parseInt(e.target.value), () => fetchDailyData(selectedDate))}
+                                                                            defaultValue={slot.malePrice ?? ''}
+                                                                            onBlur={(e) => {
+                                                                                const val = parseInt(e.target.value);
+                                                                                if (!isNaN(val) && val !== slot.malePrice) {
+                                                                                    updateSlotPrice(slot, 'male', val, () => fetchDailyData(selectedDate));
+                                                                                }
+                                                                            }}
                                                                         />
                                                                     </div>
                                                                     <div className="flex items-center gap-2">
@@ -377,15 +452,43 @@ export function AdminDashboard({ isOpen, onClose }: AdminDashboardProps) {
                                                                             step="1000"
                                                                             placeholder={systemConfig?.paymentAmountFirst || "5000"}
                                                                             className="w-20 p-1 border border-gray-300 bg-white text-gray-900 rounded text-center text-xs focus:border-brand-500 outline-none"
-                                                                            value={slot.femalePrice ?? ''}
-                                                                            onChange={(e) => updateSlotPrice(slot, 'female', parseInt(e.target.value), () => fetchDailyData(selectedDate))}
+                                                                            defaultValue={slot.femalePrice ?? ''}
+                                                                            onBlur={(e) => {
+                                                                                const val = parseInt(e.target.value);
+                                                                                if (!isNaN(val) && val !== slot.femalePrice) {
+                                                                                    updateSlotPrice(slot, 'female', val, () => fetchDailyData(selectedDate));
+                                                                                }
+                                                                            }}
                                                                         />
+                                                                    </div>
+                                                                    <div className="w-px h-6 bg-gray-300"></div>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <span className="text-xs text-brand-600 font-bold">📸 공개방 추가:</span>
+                                                                        <input
+                                                                            type="number"
+                                                                            step="1000"
+                                                                            placeholder="3000"
+                                                                            className="w-20 p-1 border border-brand-200 bg-brand-50 text-gray-900 rounded text-center text-xs focus:border-brand-500 outline-none"
+                                                                            defaultValue={slot.publicRoomExtraPrice ?? ''}
+                                                                            onBlur={(e) => {
+                                                                                const val = parseInt(e.target.value);
+                                                                                if (!isNaN(val) && val !== slot.publicRoomExtraPrice) {
+                                                                                    updatePublicRoomExtraPrice(slot, val, () => fetchDailyData(selectedDate));
+                                                                                }
+                                                                            }}
+                                                                        />
+                                                                        <span className="text-xs text-gray-400">원/인</span>
                                                                     </div>
                                                                 </div>
                                                             )}
                                                         </div>
                                                     ) : (
-                                                        <div>
+                                                        <div className="flex items-center gap-2">
+                                                            {slot.hostTeam && (
+                                                                <span className={`text-xs font-bold px-2 py-0.5 rounded ${slot.isPublicRoom ? 'bg-brand-100 text-brand-700' : 'bg-gray-200 text-gray-600'}`}>
+                                                                    {slot.isPublicRoom ? '📸 공개방' : '🔒 비공개'}
+                                                                </span>
+                                                            )}
                                                             <span className={`text-sm font-bold mr-2 px-2 py-0.5 rounded ${slot.status === 'MATCH_CONFIRMED' ? 'bg-brand-100 text-brand-700' : 'bg-gray-100 text-gray-500'}`}>
                                                                 {slot.status === 'MATCH_CONFIRMED' ? '매칭 확정됨' : slot.status === 'MATCHING_READY' ? '매칭 가능' : slot.status}
                                                             </span>
@@ -406,108 +509,89 @@ export function AdminDashboard({ isOpen, onClose }: AdminDashboardProps) {
                                                         </h4>
                                                         {slot.hostTeam ? (
                                                             <>
-                                                                <TeamCard team={slot.hostTeam} onVerify={() => handleVerifyClick(slot.hostTeam!.id)} />
+                                                                <TeamCard
+                                                                    team={slot.hostTeam}
+                                                                    onVerify={() => handleVerifyClick(slot.hostTeam!.id)}
+                                                                    onReject={() => rejectVerification(slot.hostTeam!.id, slot.hostTeam!.phone, slot, () => fetchDailyData(selectedDate))}
+                                                                />
 
-                                                                {/* 1차 매칭 후 호스트 정보 교환 설정 */}
+                                                                {/* 1차 매칭 후 호스트 상태 (공개방 vs 비공개방 분기) */}
                                                                 {slot.status === 'FIRST_CONFIRMED' && (
-                                                                    <div className="mt-3 p-3 bg-orange-50 rounded-lg border border-orange-100 space-y-3">
-                                                                        <div className="text-xs font-bold text-orange-700 mb-2">📋 호스트 설정</div>
-
-                                                                        {/* 정보 열람 희망 토글 */}
-                                                                        <div className="flex items-center justify-between">
-                                                                            <span className="text-xs text-gray-600">상대팀 정보 열람 원함</span>
-                                                                            <div className="flex gap-1">
+                                                                    slot.isPublicRoom ? (
+                                                                        /* 📸 공개방: 간소화된 응답 상태 UI */
+                                                                        <div className="mt-3">
+                                                                            <div className="flex gap-2">
                                                                                 <button
-                                                                                    onClick={() => handleInfoPreferenceClick(slot.hostTeam!.id, 'wants_info', true)}
-                                                                                    className={`px-3 py-1 text-xs rounded-l-lg border transition-all ${slot.hostTeam.wantsInfo === true
-                                                                                        ? 'bg-brand-600 text-white border-brand-600'
-                                                                                        : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                                                                                    onClick={() => updateInfoExchangeStatus(slot.hostTeam!.id, 'PROCEED', () => fetchDailyData(selectedDate))}
+                                                                                    disabled={processing}
+                                                                                    className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${slot.hostTeam?.infoExchangeStatus === 'PROCEED'
+                                                                                        ? 'bg-green-600 text-white'
+                                                                                        : 'bg-white border border-gray-200 text-gray-600 hover:bg-green-50'
                                                                                         }`}
                                                                                 >
-                                                                                    예
+                                                                                    ✅ 진행
                                                                                 </button>
                                                                                 <button
-                                                                                    onClick={() => handleInfoPreferenceClick(slot.hostTeam!.id, 'wants_info', false)}
-                                                                                    className={`px-3 py-1 text-xs rounded-r-lg border transition-all ${slot.hostTeam.wantsInfo === false
-                                                                                        ? 'bg-gray-600 text-white border-gray-600'
-                                                                                        : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                                                                                    onClick={() => updateInfoExchangeStatus(slot.hostTeam!.id, 'STOP', () => fetchDailyData(selectedDate))}
+                                                                                    disabled={processing}
+                                                                                    className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${slot.hostTeam?.infoExchangeStatus === 'STOP'
+                                                                                        ? 'bg-red-600 text-white'
+                                                                                        : 'bg-white border border-gray-200 text-gray-600 hover:bg-red-50'
                                                                                         }`}
                                                                                 >
-                                                                                    아니오
+                                                                                    ❌ 중단
                                                                                 </button>
                                                                             </div>
+                                                                            {slot.hostTeam?.infoExchangeStatus === 'PENDING' && (
+                                                                                <div className="mt-2 text-center text-xs text-gray-500">⏳ 응답 대기중...</div>
+                                                                            )}
                                                                         </div>
-
-                                                                        {/* 정보 공개 여부 토글 */}
-                                                                        <div className="flex items-center justify-between">
-                                                                            <span className="text-xs text-gray-600">본인팀 정보 공개</span>
-                                                                            <div className="flex gap-1">
-                                                                                <button
-                                                                                    onClick={() => handleInfoPreferenceClick(slot.hostTeam!.id, 'shares_info', true)}
-                                                                                    className={`px-3 py-1 text-xs rounded-l-lg border transition-all ${slot.hostTeam.sharesInfo === true
-                                                                                        ? 'bg-brand-600 text-white border-brand-600'
-                                                                                        : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
-                                                                                        }`}
-                                                                                >
-                                                                                    공개
-                                                                                </button>
-                                                                                <button
-                                                                                    onClick={() => handleInfoPreferenceClick(slot.hostTeam!.id, 'shares_info', false)}
-                                                                                    className={`px-3 py-1 text-xs rounded-r-lg border transition-all ${slot.hostTeam.sharesInfo === false
-                                                                                        ? 'bg-gray-600 text-white border-gray-600'
-                                                                                        : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
-                                                                                        }`}
-                                                                                >
-                                                                                    비공개
-                                                                                </button>
-                                                                            </div>
+                                                                    ) : (
+                                                                        /* 🔒 비공개방: 기존 복잡한 정보 교환 UI (필요한 경우) */
+                                                                        <div className="mt-3">
+                                                                            {/* 프로세스 단계별 액션 버튼 / 상태 표시 */}
+                                                                            {slot.hostTeam.processStep && (
+                                                                                <div className="mt-1">
+                                                                                    {slot.hostTeam.processStep === 'WAITING_PAYMENT' && (
+                                                                                        <button
+                                                                                            onClick={() => handlePaymentConfirmClick(slot.hostTeam!.id, slot)}
+                                                                                            disabled={processing}
+                                                                                            className="w-full bg-blue-600 text-white py-2 rounded-lg text-xs font-bold hover:bg-blue-700 disabled:opacity-50"
+                                                                                        >
+                                                                                            💰 결제 확인 완료
+                                                                                        </button>
+                                                                                    )}
+                                                                                    {slot.hostTeam.processStep === 'WAITING_CONFIRM' && (
+                                                                                        <div className="flex gap-2">
+                                                                                            <button
+                                                                                                onClick={() => handleConfirmDecisionClick(slot.hostTeam!.id, true, slot)}
+                                                                                                disabled={processing}
+                                                                                                className="flex-1 bg-green-600 text-white py-2 rounded-lg text-xs font-bold hover:bg-green-700 disabled:opacity-50"
+                                                                                            >
+                                                                                                ✅ 진행
+                                                                                            </button>
+                                                                                            <button
+                                                                                                onClick={() => handleConfirmDecisionClick(slot.hostTeam!.id, false, slot)}
+                                                                                                disabled={processing}
+                                                                                                className="flex-1 bg-red-600 text-white py-2 rounded-lg text-xs font-bold hover:bg-red-700 disabled:opacity-50"
+                                                                                            >
+                                                                                                ❌ 취소
+                                                                                            </button>
+                                                                                        </div>
+                                                                                    )}
+                                                                                    {slot.hostTeam.processStep === 'WAITING_OTHER' && (
+                                                                                        <div className="text-center text-xs text-gray-500 py-2">⏳ 게스트 프로세스 대기중...</div>
+                                                                                    )}
+                                                                                    {slot.hostTeam.processStep === 'COMPLETED' && (
+                                                                                        <div className="text-center text-xs text-green-600 font-bold py-2">✅ 준비 완료</div>
+                                                                                    )}
+                                                                                    {slot.hostTeam.processStep === 'CANCELLED' && (
+                                                                                        <div className="text-center text-xs text-red-600 font-bold py-2">❌ 취소됨</div>
+                                                                                    )}
+                                                                                </div>
+                                                                            )}
                                                                         </div>
-
-                                                                        {/* 프로세스 단계별 액션 버튼 */}
-                                                                        {slot.hostTeam.processStep && (
-                                                                            <div className="mt-3 pt-3 border-t border-orange-200">
-                                                                                {slot.hostTeam.processStep === 'WAITING_PAYMENT' && (
-                                                                                    <button
-                                                                                        onClick={() => handlePaymentConfirmClick(slot.hostTeam!.id, slot)}
-                                                                                        disabled={processing}
-                                                                                        className="w-full bg-blue-600 text-white py-2 rounded-lg text-xs font-bold hover:bg-blue-700 disabled:opacity-50"
-                                                                                    >
-                                                                                        💰 결제 확인 완료
-                                                                                    </button>
-                                                                                )}
-                                                                                {slot.hostTeam.processStep === 'WAITING_CONFIRM' && (
-                                                                                    <div className="flex gap-2">
-                                                                                        <button
-                                                                                            onClick={() => handleConfirmDecisionClick(slot.hostTeam!.id, true, slot)}
-                                                                                            disabled={processing}
-                                                                                            className="flex-1 bg-green-600 text-white py-2 rounded-lg text-xs font-bold hover:bg-green-700 disabled:opacity-50"
-                                                                                        >
-                                                                                            ✅ 진행
-                                                                                        </button>
-                                                                                        <button
-                                                                                            onClick={() => handleConfirmDecisionClick(slot.hostTeam!.id, false, slot)}
-                                                                                            disabled={processing}
-                                                                                            className="flex-1 bg-red-600 text-white py-2 rounded-lg text-xs font-bold hover:bg-red-700 disabled:opacity-50"
-                                                                                        >
-                                                                                            ❌ 취소
-                                                                                        </button>
-                                                                                    </div>
-                                                                                )}
-                                                                                {slot.hostTeam.processStep === 'WAITING_OTHER' && (
-                                                                                    <div className="text-center text-xs text-gray-500 py-2">⏳ 게스트 프로세스 대기중...</div>
-                                                                                )}
-                                                                                {slot.hostTeam.processStep === 'COMPLETED' && (
-                                                                                    <div className="text-center text-xs text-green-600 font-bold py-2">✅ 준비 완료</div>
-                                                                                )}
-                                                                                {slot.hostTeam.processStep === 'READY_FOR_FINAL' && (
-                                                                                    <div className="text-center text-xs text-blue-600 font-bold py-2">💰 최종 결제 대기중</div>
-                                                                                )}
-                                                                                {slot.hostTeam.processStep === 'CANCELLED' && (
-                                                                                    <div className="text-center text-xs text-red-600 font-bold py-2">❌ 취소됨</div>
-                                                                                )}
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
+                                                                    )
                                                                 )}
                                                             </>
                                                         ) : (
@@ -537,110 +621,89 @@ export function AdminDashboard({ isOpen, onClose }: AdminDashboardProps) {
 
                                                                     return (
                                                                         <div key={guest.id} className={`relative ${isFirstConfirmed ? 'ring-2 ring-orange-400 rounded-xl' : ''}`}>
-                                                                            <TeamCard team={guest} onVerify={() => handleVerifyClick(guest.id)} />
+                                                                            <TeamCard
+                                                                                team={guest}
+                                                                                onVerify={() => handleVerifyClick(guest.id)}
+                                                                                onReject={() => rejectVerification(guest.id, guest.phone, slot, () => fetchDailyData(selectedDate))}
+                                                                            />
 
-                                                                            {/* 1차 매칭 확정된 게스트 - 정보 교환 설정 UI */}
+                                                                            {/* 1차 매칭 확정된 게스트 - 공개방 vs 비공개방 분기 */}
                                                                             {isFirstConfirmed && !isMatchConfirmed && (
-                                                                                <div className="mt-3 p-3 bg-orange-50 rounded-lg border border-orange-100 space-y-3">
-                                                                                    <div className="flex items-center justify-between mb-2">
-                                                                                        <div className="text-xs font-bold text-orange-700">📋 게스트 설정</div>
-                                                                                    </div>
-
-                                                                                    {/* 정보 열람 희망 토글 */}
-                                                                                    <div className="flex items-center justify-between">
-                                                                                        <span className="text-xs text-gray-600">상대팀 정보 열람 원함</span>
-                                                                                        <div className="flex gap-1">
+                                                                                slot.isPublicRoom ? (
+                                                                                    /* 📸 공개방: 간소화된 게스트 응답 UI */
+                                                                                    <div className="mt-3">
+                                                                                        <div className="flex gap-2">
                                                                                             <button
-                                                                                                onClick={() => handleInfoPreferenceClick(guest.id, 'wants_info', true)}
-                                                                                                className={`px-3 py-1 text-xs rounded-l-lg border transition-all ${guest.wantsInfo === true
-                                                                                                    ? 'bg-brand-600 text-white border-brand-600'
-                                                                                                    : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                                                                                                onClick={() => updateInfoExchangeStatus(guest.id, 'PROCEED', () => fetchDailyData(selectedDate))}
+                                                                                                disabled={processing}
+                                                                                                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${guest.infoExchangeStatus === 'PROCEED'
+                                                                                                    ? 'bg-green-600 text-white'
+                                                                                                    : 'bg-white border border-gray-200 text-gray-600 hover:bg-green-50'
                                                                                                     }`}
                                                                                             >
-                                                                                                예
+                                                                                                ✅ 진행
                                                                                             </button>
                                                                                             <button
-                                                                                                onClick={() => handleInfoPreferenceClick(guest.id, 'wants_info', false)}
-                                                                                                className={`px-3 py-1 text-xs rounded-r-lg border transition-all ${guest.wantsInfo === false
-                                                                                                    ? 'bg-gray-600 text-white border-gray-600'
-                                                                                                    : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                                                                                                onClick={() => updateInfoExchangeStatus(guest.id, 'STOP', () => fetchDailyData(selectedDate))}
+                                                                                                disabled={processing}
+                                                                                                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${guest.infoExchangeStatus === 'STOP'
+                                                                                                    ? 'bg-red-600 text-white'
+                                                                                                    : 'bg-white border border-gray-200 text-gray-600 hover:bg-red-50'
                                                                                                     }`}
                                                                                             >
-                                                                                                아니오
+                                                                                                ❌ 중단
                                                                                             </button>
                                                                                         </div>
+                                                                                        {guest.infoExchangeStatus === 'PENDING' && (
+                                                                                            <div className="mt-2 text-center text-xs text-gray-500">⏳ 응답 대기중...</div>
+                                                                                        )}
                                                                                     </div>
-
-                                                                                    {/* 정보 공개 여부 토글 */}
-                                                                                    <div className="flex items-center justify-between">
-                                                                                        <span className="text-xs text-gray-600">본인팀 정보 공개</span>
-                                                                                        <div className="flex gap-1">
-                                                                                            <button
-                                                                                                onClick={() => handleInfoPreferenceClick(guest.id, 'shares_info', true)}
-                                                                                                className={`px-3 py-1 text-xs rounded-l-lg border transition-all ${guest.sharesInfo === true
-                                                                                                    ? 'bg-brand-600 text-white border-brand-600'
-                                                                                                    : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
-                                                                                                    }`}
-                                                                                            >
-                                                                                                공개
-                                                                                            </button>
-                                                                                            <button
-                                                                                                onClick={() => handleInfoPreferenceClick(guest.id, 'shares_info', false)}
-                                                                                                className={`px-3 py-1 text-xs rounded-r-lg border transition-all ${guest.sharesInfo === false
-                                                                                                    ? 'bg-gray-600 text-white border-gray-600'
-                                                                                                    : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
-                                                                                                    }`}
-                                                                                            >
-                                                                                                비공개
-                                                                                            </button>
-                                                                                        </div>
-                                                                                    </div>
-
-                                                                                    {/* 게스트 프로세스 단계별 액션 버튼 */}
-                                                                                    {guest.processStep && (
-                                                                                        <div className="mt-3 pt-3 border-t border-green-200">
-                                                                                            {guest.processStep === 'WAITING_PAYMENT' && (
-                                                                                                <button
-                                                                                                    onClick={() => handlePaymentConfirmClick(guest.id, slot)}
-                                                                                                    disabled={processing}
-                                                                                                    className="w-full bg-blue-600 text-white py-2 rounded-lg text-xs font-bold hover:bg-blue-700 disabled:opacity-50"
-                                                                                                >
-                                                                                                    💰 결제 확인 완료
-                                                                                                </button>
-                                                                                            )}
-                                                                                            {guest.processStep === 'WAITING_CONFIRM' && (
-                                                                                                <div className="flex gap-2">
+                                                                                ) : (
+                                                                                    /* 🔒 비공개방: 기존 정보 교환 UI */
+                                                                                    <div className="mt-3">
+                                                                                        {/* 게스트 프로세스 단계별 액션 버튼 */}
+                                                                                        {guest.processStep && (
+                                                                                            <div className="mt-1">
+                                                                                                {guest.processStep === 'WAITING_PAYMENT' && (
                                                                                                     <button
-                                                                                                        onClick={() => handleConfirmDecisionClick(guest.id, true, slot)}
+                                                                                                        onClick={() => handlePaymentConfirmClick(guest.id, slot)}
                                                                                                         disabled={processing}
-                                                                                                        className="flex-1 bg-green-600 text-white py-2 rounded-lg text-xs font-bold hover:bg-green-700 disabled:opacity-50"
+                                                                                                        className="w-full bg-blue-600 text-white py-2 rounded-lg text-xs font-bold hover:bg-blue-700 disabled:opacity-50"
                                                                                                     >
-                                                                                                        ✅ 진행
+                                                                                                        💰 결제 확인 완료
                                                                                                     </button>
-                                                                                                    <button
-                                                                                                        onClick={() => handleConfirmDecisionClick(guest.id, false, slot)}
-                                                                                                        disabled={processing}
-                                                                                                        className="flex-1 bg-red-600 text-white py-2 rounded-lg text-xs font-bold hover:bg-red-700 disabled:opacity-50"
-                                                                                                    >
-                                                                                                        ❌ 취소
-                                                                                                    </button>
-                                                                                                </div>
-                                                                                            )}
-                                                                                            {guest.processStep === 'WAITING_OTHER' && (
-                                                                                                <div className="text-center text-xs text-gray-500 py-2">⏳ 호스트 프로세스 대기중...</div>
-                                                                                            )}
-                                                                                            {guest.processStep === 'COMPLETED' && (
-                                                                                                <div className="text-center text-xs text-green-600 font-bold py-2">✅ 준비 완료</div>
-                                                                                            )}
-                                                                                            {guest.processStep === 'READY_FOR_FINAL' && (
-                                                                                                <div className="text-center text-xs text-blue-600 font-bold py-2">💰 최종 결제 대기중</div>
-                                                                                            )}
-                                                                                            {guest.processStep === 'CANCELLED' && (
-                                                                                                <div className="text-center text-xs text-red-600 font-bold py-2">❌ 취소됨</div>
-                                                                                            )}
-                                                                                        </div>
-                                                                                    )}
-                                                                                </div>
+                                                                                                )}
+                                                                                                {guest.processStep === 'WAITING_CONFIRM' && (
+                                                                                                    <div className="flex gap-2">
+                                                                                                        <button
+                                                                                                            onClick={() => handleConfirmDecisionClick(guest.id, true, slot)}
+                                                                                                            disabled={processing}
+                                                                                                            className="flex-1 bg-green-600 text-white py-2 rounded-lg text-xs font-bold hover:bg-green-700 disabled:opacity-50"
+                                                                                                        >
+                                                                                                            ✅ 진행
+                                                                                                        </button>
+                                                                                                        <button
+                                                                                                            onClick={() => handleConfirmDecisionClick(guest.id, false, slot)}
+                                                                                                            disabled={processing}
+                                                                                                            className="flex-1 bg-red-600 text-white py-2 rounded-lg text-xs font-bold hover:bg-red-700 disabled:opacity-50"
+                                                                                                        >
+                                                                                                            ❌ 취소
+                                                                                                        </button>
+                                                                                                    </div>
+                                                                                                )}
+                                                                                                {guest.processStep === 'WAITING_OTHER' && (
+                                                                                                    <div className="text-center text-xs text-gray-500 py-2">⏳ 호스트 프로세스 대기중...</div>
+                                                                                                )}
+                                                                                                {guest.processStep === 'COMPLETED' && (
+                                                                                                    <div className="text-center text-xs text-green-600 font-bold py-2">✅ 준비 완료</div>
+                                                                                                )}
+                                                                                                {guest.processStep === 'CANCELLED' && (
+                                                                                                    <div className="text-center text-xs text-red-600 font-bold py-2">❌ 취소됨</div>
+                                                                                                )}
+                                                                                            </div>
+                                                                                        )}
+                                                                                    </div>
+                                                                                )
                                                                             )}
 
                                                                             {/* 일반 게스트 - 1차 매칭 버튼만 표시 */}
@@ -649,9 +712,12 @@ export function AdminDashboard({ isOpen, onClose }: AdminDashboardProps) {
                                                                                     <button
                                                                                         type="button"
                                                                                         onClick={() => handleFirstMatchClick(slot, guest.id)}
-                                                                                        disabled={processing}
-                                                                                        className="flex-1 bg-orange-500 text-white py-2 px-3 rounded-lg text-xs font-bold hover:bg-orange-600 transition-all flex items-center justify-center gap-1 disabled:opacity-50 shadow-sm cursor-pointer"
-                                                                                        title="1차 매칭 확정 (인스타 교환 단계)"
+                                                                                        disabled={processing || !guest.isVerified}
+                                                                                        className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 shadow-sm cursor-pointer ${processing || !guest.isVerified
+                                                                                            ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                                                                            : 'bg-orange-500 text-white hover:bg-orange-600'
+                                                                                            }`}
+                                                                                        title={!guest.isVerified ? "학생증 인증이 필요합니다" : "1차 매칭 확정 (인스타 교환 단계)"}
                                                                                     >
                                                                                         {processing ? <Loader2 className="animate-spin" size={12} /> : <>📋 1차 매칭 확정</>}
                                                                                     </button>
@@ -666,6 +732,8 @@ export function AdminDashboard({ isOpen, onClose }: AdminDashboardProps) {
                                                                                     </button>
                                                                                 </div>
                                                                             )}
+
+
 
                                                                             {/* 최종 매칭 완료된 게스트 */}
                                                                             {isMatchConfirmed && (
@@ -686,40 +754,87 @@ export function AdminDashboard({ isOpen, onClose }: AdminDashboardProps) {
                                                 {/* 다음 스텝 / 최종 매칭 버튼 (1차 매칭 상태일 때) */}
                                                 {slot.status === 'FIRST_CONFIRMED' && (
                                                     <div className="mt-4 pt-4 border-t border-gray-200 space-y-3">
-                                                        {/* 아직 다음 스텝 진행 전 */}
-                                                        {!slot.hostTeam?.processStep && !slot.guestTeams.find(g => g.status === 'FIRST_CONFIRMED')?.processStep && (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => handleNextStepClick(slot)}
-                                                                disabled={processing}
-                                                                className="w-full bg-green-600 text-white py-3 rounded-lg text-sm font-bold hover:bg-green-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 shadow-sm cursor-pointer"
-                                                            >
-                                                                {processing ? <Loader2 className="animate-spin" size={14} /> : <>▶️ 다음 스텝 진행</>}
-                                                            </button>
-                                                        )}
+                                                        {/* 📸 공개방: 간소화된 프로세스 */}
+                                                        {slot.isPublicRoom ? (
+                                                            (() => {
+                                                                const guest = slot.guestTeams.find(g => g.status === 'FIRST_CONFIRMED');
+                                                                const hostStatus = slot.hostTeam?.infoExchangeStatus;
+                                                                const guestStatus = guest?.infoExchangeStatus;
+                                                                const bothProceed = hostStatus === 'PROCEED' && guestStatus === 'PROCEED';
+                                                                const anyStop = hostStatus === 'STOP' || guestStatus === 'STOP';
 
-                                                        {/* 진행 중 상태 */}
-                                                        {(slot.hostTeam?.processStep || slot.guestTeams.find(g => g.status === 'FIRST_CONFIRMED')?.processStep)
-                                                            && !canFinalMatch(slot)
-                                                            && (
-                                                                <div className="text-center text-sm text-gray-500 py-3 bg-gray-50 rounded-lg">
-                                                                    ⏳ 각 팀의 프로세스를 완료해주세요
+                                                                return (
+                                                                    <>
+                                                                        {/* 응답 상태 요약 */}
+                                                                        <div className="flex items-center justify-center gap-4 text-sm py-2">
+                                                                            <div className={`px-3 py-1 rounded-full ${hostStatus === 'PROCEED' ? 'bg-green-100 text-green-700' :
+                                                                                hostStatus === 'STOP' ? 'bg-red-100 text-red-700' :
+                                                                                    'bg-gray-100 text-gray-500'
+                                                                                }`}>
+                                                                                호스트: {hostStatus === 'PROCEED' ? '✅ 진행' : hostStatus === 'STOP' ? '❌ 중단' : '⏳ 대기'}
+                                                                            </div>
+                                                                            <div className={`px-3 py-1 rounded-full ${guestStatus === 'PROCEED' ? 'bg-green-100 text-green-700' :
+                                                                                guestStatus === 'STOP' ? 'bg-red-100 text-red-700' :
+                                                                                    'bg-gray-100 text-gray-500'
+                                                                                }`}>
+                                                                                게스트: {guestStatus === 'PROCEED' ? '✅ 진행' : guestStatus === 'STOP' ? '❌ 중단' : '⏳ 대기'}
+                                                                            </div>
+                                                                        </div>
+
+                                                                        {/* 양팀 PROCEED -> 최종 매칭 진행 */}
+                                                                        {bothProceed && guest && (
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => handleFinalMatchClick(slot, guest.id)}
+                                                                                disabled={processing}
+                                                                                className="w-full bg-brand-600 text-white py-3 rounded-lg text-sm font-bold hover:bg-brand-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 shadow-lg cursor-pointer"
+                                                                            >
+                                                                                {processing ? <Loader2 className="animate-spin" size={14} /> : <>🎉 최종 매칭 확정</>}
+                                                                            </button>
+                                                                        )}
+
+                                                                        {/* 한쪽 STOP -> 매칭 취소 */}
+                                                                        {anyStop && (
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => handlePublicRoomCancelMatch(slot, selectedDate, () => fetchDailyData(selectedDate))}
+                                                                                disabled={processing}
+                                                                                className="w-full bg-red-600 text-white py-3 rounded-lg text-sm font-bold hover:bg-red-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                                                                            >
+                                                                                {processing ? <Loader2 className="animate-spin" size={14} /> : <>❌ 매칭 취소 처리</>}
+                                                                            </button>
+                                                                        )}
+
+                                                                        {/* 아직 대기중 */}
+                                                                        {!bothProceed && !anyStop && (
+                                                                            <div className="text-center text-sm text-gray-500 py-3 bg-gray-50 rounded-lg">
+                                                                                ⏳ 양팀 응답을 기다리는 중...
+                                                                            </div>
+                                                                        )}
+                                                                    </>
+                                                                );
+                                                            })()
+                                                        ) : (
+                                                            /* 🔒 비공개방: 간소화된 프로세스 (1차 매칭 -> 결제 대기 -> 최종 매칭) */
+                                                            <>
+                                                                {/* 결제 대기 상태 안내 */}
+                                                                <div className="text-center text-sm text-gray-500 py-3 bg-gray-50 rounded-lg mb-3">
+                                                                    ⏳ 최종 결제 대기중... (입금 확인 후 아래 버튼을 눌러주세요)
                                                                 </div>
-                                                            )}
 
-                                                        {/* 양팀 모두 READY_FOR_FINAL -> 최종 매칭 버튼 */}
-                                                        {canFinalMatch(slot) && (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => {
-                                                                    const guest = slot.guestTeams.find(g => g.status === 'FIRST_CONFIRMED');
-                                                                    if (guest) handleFinalMatchClick(slot, guest.id);
-                                                                }}
-                                                                disabled={processing}
-                                                                className="w-full bg-brand-600 text-white py-3 rounded-lg text-sm font-bold hover:bg-brand-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 shadow-lg cursor-pointer"
-                                                            >
-                                                                {processing ? <Loader2 className="animate-spin" size={14} /> : <>🎉 결제 확인 & 최종 매칭</>}
-                                                            </button>
+                                                                {/* 최종 매칭 버튼 (항상 노출) */}
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        const guest = slot.guestTeams.find(g => g.status === 'FIRST_CONFIRMED');
+                                                                        if (guest) handleFinalMatchClick(slot, guest.id);
+                                                                    }}
+                                                                    disabled={processing}
+                                                                    className="w-full bg-brand-600 text-white py-3 rounded-lg text-sm font-bold hover:bg-brand-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 shadow-lg cursor-pointer"
+                                                                >
+                                                                    {processing ? <Loader2 className="animate-spin" size={14} /> : <>🎉 결제 확인 & 최종 매칭</>}
+                                                                </button>
+                                                            </>
                                                         )}
                                                     </div>
                                                 )}
@@ -767,6 +882,71 @@ export function AdminDashboard({ isOpen, onClose }: AdminDashboardProps) {
                             <button type="button" onClick={confirmReject} disabled={processing} className="flex-1 py-3 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 flex items-center justify-center gap-2">
                                 {processing && <Loader2 className="animate-spin" size={16} />}
                                 {deleteContext.teamType === 'HOST' ? '전체 삭제' : '삭제하기'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Final Cancel Modal - Refund Logic */}
+            {finalCancelModalOpen && finalCancelContext.slot && (
+                <div className="fixed inset-0 z-[120] bg-black/60 flex items-center justify-center p-4 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl relative">
+                        <button onClick={() => setFinalCancelModalOpen(false)} className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600"><X size={20} /></button>
+
+                        <div className="text-center mb-6">
+                            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4 text-red-600 border-4 border-white shadow-lg">
+                                <AlertTriangle size={32} />
+                            </div>
+                            <h3 className="text-xl font-black text-gray-900">최종 매칭 취소 처리</h3>
+                            <p className="text-sm text-gray-500 mt-1">환불 규정에 따라 알림톡이 자동 발송됩니다.</p>
+                        </div>
+
+                        <div className="bg-gray-50 p-4 rounded-xl space-y-3 mb-6 border border-gray-100">
+                            <div className="flex justify-between text-sm">
+                                <span className="text-gray-500">현재 시간</span>
+                                <span className="font-bold text-gray-900">
+                                    {new Date().toLocaleString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                                <span className="text-gray-500">예약 시간</span>
+                                <span className="font-bold text-gray-900">
+                                    {finalCancelContext.slot.date} {finalCancelContext.slot.time}
+                                </span>
+                            </div>
+                            <div className="flex justify-between text-sm pt-2 border-t border-gray-200">
+                                <span className="text-gray-500 text-xs">남은 시간</span>
+                                <span className={`font-bold ${finalCancelContext.hoursRemaining > 48 ? 'text-blue-600' : 'text-red-600'}`}>
+                                    {finalCancelContext.hoursRemaining.toFixed(1)}시간 전
+                                </span>
+                            </div>
+
+                            <div className={`mt-3 p-2 rounded text-center text-xs font-bold border ${finalCancelContext.hoursRemaining > 48
+                                ? 'bg-blue-50 text-blue-600 border-blue-100'
+                                : 'bg-red-50 text-red-600 border-red-100'}`}>
+                                {finalCancelContext.hoursRemaining > 48 ? '✅ 환불 가능 (48시간 이전)' : '❌ 환불 불가 (48시간 이내)'}
+                            </div>
+                        </div>
+
+                        <div className="space-y-2 mb-6">
+                            <p className="text-xs font-bold text-gray-500">👉 전송될 알림톡</p>
+                            <div className="text-xs text-gray-700 bg-white border border-gray-200 p-3 rounded-lg flex flex-col gap-1.5 shadow-sm">
+                                <div className="flex justify-between">
+                                    <span className="font-bold text-red-600">취소팀 ({finalCancelContext.teamId === finalCancelContext.slot.hostTeam?.id ? 'Host' : 'Guest'})</span>
+                                    <span>{finalCancelContext.hoursRemaining > 48 ? '환불 안내' : <span className="text-red-600 font-bold">환불 불가 안내</span>}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="font-bold text-blue-600">상대팀</span>
+                                    <span>환불 안내</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3">
+                            <button onClick={() => setFinalCancelModalOpen(false)} className="flex-1 py-3.5 bg-gray-100 text-gray-600 rounded-xl font-bold hover:bg-gray-200 transition-colors">취소</button>
+                            <button onClick={confirmFinalCancel} disabled={processing} className="flex-1 py-3.5 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 shadow-lg shadow-red-200 transition-all flex items-center justify-center gap-2">
+                                {processing ? <Loader2 className="animate-spin" /> : '알림톡 발송 및 취소'}
                             </button>
                         </div>
                     </div>

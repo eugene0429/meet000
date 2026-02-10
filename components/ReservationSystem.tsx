@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, User, Plus, Trash2, Instagram, Info, CheckCircle2, Upload, Loader2, Lock } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, User, Plus, Trash2, Instagram, Info, CheckCircle2, Upload, Loader2, Lock, ChevronUp, ChevronDown } from 'lucide-react';
 import { MeetingSlot, ReservationFormData, SlotStatus, TeamMember, TeamInfo } from '../types';
 import { supabase } from '../lib/supabaseClient';
 import {
@@ -9,8 +9,7 @@ import {
   sendGuestAppliedNotification,
   sendHostNewApplicantNotification,
   formatDateForNotification,
-  isSolapiConfigured
-} from '../services/kakaoNotificationService';
+} from '../lib/notificationApiClient';
 
 interface ReservationSystemProps {
   isOpen: boolean;
@@ -22,6 +21,8 @@ interface ExtendedMeetingSlot extends MeetingSlot {
   malePrice?: number;
   femalePrice?: number;
   isPast?: boolean;
+  isPublicRoom?: boolean;  // 호스트가 공개방으로 설정했는지
+  publicRoomExtraPrice?: number;  // 공개방 추가금액
 }
 
 const TIMES = ['18:00', '19:00', '20:00', '21:00', '22:00', '23:00'];
@@ -62,7 +63,7 @@ const compressImage = async (file: File): Promise<Blob> => {
 };
 
 const ReservationSystem: React.FC<ReservationSystemProps> = ({ isOpen, onClose }) => {
-  const [view, setView] = useState<'CALENDAR' | 'FORM' | 'SUCCESS'>('CALENDAR');
+  const [view, setView] = useState<'CALENDAR' | 'FORM' | 'CONFIRM' | 'SUCCESS'>('CALENDAR');
   const [selectedDate, setSelectedDate] = useState<Date>(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -73,6 +74,7 @@ const ReservationSystem: React.FC<ReservationSystemProps> = ({ isOpen, onClose }
   const [submitting, setSubmitting] = useState(false);
 
   const [dbSlots, setDbSlots] = useState<ExtendedMeetingSlot[]>([]);
+  const [expandedHostSlotId, setExpandedHostSlotId] = useState<string | null>(null);
 
   // Form State
   const [formData, setFormData] = useState<ReservationFormData>({
@@ -80,8 +82,12 @@ const ReservationSystem: React.FC<ReservationSystemProps> = ({ isOpen, onClose }
     phone: '',
     members: [{ age: '', university: '', major: '', instagramId: '' }],
     studentIdImage: null,
-    intro: ''
+    intro: '',
+    representativeId: ''
   });
+
+  // 공개방/비공개방 선택 (호스트 등록 시에만 사용)
+  const [isPublicRoom, setIsPublicRoom] = useState(false);
 
   // Phone Parts State
   const [phoneParts, setPhoneParts] = useState({ p1: '010', p2: '', p3: '' });
@@ -119,6 +125,7 @@ const ReservationSystem: React.FC<ReservationSystemProps> = ({ isOpen, onClose }
       // 설정이 없으면 기본값 사용
       const openTimes: string[] = dailyConfig?.open_times || [];
       const defaultMaxApplicants = dailyConfig?.max_applicants || 3;
+      const publicRoomExtraPrice = dailyConfig?.public_room_extra_price || 3000;
 
       // 지난 날짜인지 확인 (한국 시간 기준)
       const today = new Date();
@@ -137,6 +144,7 @@ const ReservationSystem: React.FC<ReservationSystemProps> = ({ isOpen, onClose }
         const maxApplicants = slotConfig.maxApplicants ?? defaultMaxApplicants;
         const malePrice = slotConfig.malePrice;
         const femalePrice = slotConfig.femalePrice;
+        const slotPublicRoomExtraPrice = slotConfig.publicRoomExtraPrice ?? publicRoomExtraPrice;  // 슬롯별 > 전역
 
         // Process Teams
         let hostTeam: TeamInfo | undefined;
@@ -145,7 +153,10 @@ const ReservationSystem: React.FC<ReservationSystemProps> = ({ isOpen, onClose }
         if (teamsAtTimeRaw.length > 0) {
           // The first team is the Host
           const hostRaw = teamsAtTimeRaw[0];
-          hostTeam = mapTeamRawToInfo(hostRaw);
+          hostTeam = {
+            ...mapTeamRawToInfo(hostRaw),
+            isPublicRoom: hostRaw.is_public_room || false
+          };
 
           // Rest are guests
           if (teamsAtTimeRaw.length > 1) {
@@ -191,6 +202,8 @@ const ReservationSystem: React.FC<ReservationSystemProps> = ({ isOpen, onClose }
           malePrice,
           femalePrice,
           isPast: isPastDate,
+          isPublicRoom: hostTeam?.isPublicRoom,
+          publicRoomExtraPrice: slotPublicRoomExtraPrice,  // 슬롯별 공개방 추가금액
           hostTeam,
           guestTeams
         };
@@ -222,7 +235,8 @@ const ReservationSystem: React.FC<ReservationSystemProps> = ({ isOpen, onClose }
       members: raw.members,
       createdAt: raw.created_at,
       status: raw.status,
-      intro: raw.intro
+      intro: raw.intro,
+      representativeId: raw.representative_id
     };
   };
 
@@ -262,10 +276,28 @@ const ReservationSystem: React.FC<ReservationSystemProps> = ({ isOpen, onClose }
   const updateMember = (index: number, field: keyof TeamMember, value: string) => { const newMembers = [...formData.members]; newMembers[index] = { ...newMembers[index], [field]: value }; setFormData({ ...formData, members: newMembers }); };
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => { if (e.target.files && e.target.files[0]) { setFormData({ ...formData, studentIdImage: e.target.files[0] }); } };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.studentIdImage) { alert("대표자 학생증 사진은 필수입니다."); return; }
     if (!selectedSlot) return;
+
+    // 공개방인 경우 인스타그램 ID 필수 체크
+    const requireInstagram = selectedSlot.hostTeam ? selectedSlot.hostTeam.isPublicRoom : isPublicRoom;
+    if (requireInstagram) {
+      const missingInstagram = formData.members.some(m => !m.instagramId || m.instagramId.trim() === '');
+      if (missingInstagram) {
+        alert("공개방에서는 모든 멤버의 인스타그램 ID가 필수입니다.");
+        return;
+      }
+    }
+
+    setView('CONFIRM');
+  };
+
+  const handleFinalSubmit = async () => {
+    if (!selectedSlot) {
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -295,13 +327,19 @@ const ReservationSystem: React.FC<ReservationSystemProps> = ({ isOpen, onClose }
           student_id_url: imageUrl,
           date: dateStr,
           time: timeStr,
-
           status: newStatus,
-          intro: formData.intro
+          intro: formData.intro,
+          representative_id: formData.representativeId,
+          role: selectedSlot.hostTeam ? 'GUEST' : 'HOST',
+          // 게스트는 호스트의 is_public_room 설정을 상속, 호스트는 직접 선택
+          is_public_room: selectedSlot.hostTeam ? (selectedSlot.hostTeam.isPublicRoom || false) : isPublicRoom
         }])
         .select();
 
-      if (teamError) throw teamError;
+      if (teamError) {
+        console.error('❌ Supabase insert error:', teamError);
+        throw teamError;
+      }
       if (!teamData || teamData.length === 0) throw new Error("Failed to create team");
 
       const teamId = teamData[0].id;
@@ -314,48 +352,28 @@ const ReservationSystem: React.FC<ReservationSystemProps> = ({ isOpen, onClose }
       }));
 
       const { error: memberError } = await supabase.from('members').insert(membersToInsert);
-      if (memberError) throw memberError;
+      if (memberError) {
+        console.error('❌ Members insert error:', memberError);
+        throw memberError;
+      }
+
+
 
       // ✅ 알림톡 발송
       const dateFormatted = formatDateForNotification(selectedDate);
       const timeFormatted = selectedSlot.time;
       const isHost = !selectedSlot.hostTeam;
 
-      if (isSolapiConfigured()) {
-        if (isHost) {
-          // 호스트 등록 완료 알림톡
-          await sendHostRegisteredNotification(formData.phone, dateFormatted, timeFormatted);
-        } else {
-          // 게스트 신청 완료 알림톡
-          await sendGuestAppliedNotification(
-            formData.phone,
-            dateFormatted,
-            timeFormatted,
-            selectedSlot.hostTeam?.university || ''
-          );
-
-          // 호스트에게 새 신청자 알림톡
-          if (selectedSlot.hostTeam?.phone) {
-            const guestInfo = {
-              university: formData.members[0]?.university || '',
-              gender: formData.gender,
-              headCount: formData.members.length,
-              avgAge: Math.round(
-                formData.members.reduce((sum, m) => sum + (parseInt(m.age) || 0), 0) / formData.members.length
-              ),
-              phone: formData.phone,
-            };
-            await sendHostNewApplicantNotification(
-              selectedSlot.hostTeam.phone,
-              guestInfo,
-              dateFormatted,
-              timeFormatted
-            );
-          }
-        }
-      } else {
-        console.log('📵 Solapi 미설정 - 알림톡 발송 건너뜀');
+      if (isHost) {
+        // 호스트 등록 완료 알림톡 (템플릿 01)
+        await sendHostRegisteredNotification(
+          formData.phone,
+          dateFormatted,
+          timeFormatted,
+          formData.representativeId
+        );
       }
+      // 게스트는 학생증 승인 후 알림톡 발송 (템플릿 02, 03)
 
       setView('SUCCESS');
       fetchSlots(selectedDate);
@@ -371,8 +389,9 @@ const ReservationSystem: React.FC<ReservationSystemProps> = ({ isOpen, onClose }
     if (!isOpen) {
       setTimeout(() => {
         setView('CALENDAR');
-        setFormData({ gender: 'MALE', phone: '', members: [{ age: '', university: '', major: '', instagramId: '' }], studentIdImage: null, intro: '' });
+        setFormData({ gender: 'MALE', phone: '', members: [{ age: '', university: '', major: '', instagramId: '' }], studentIdImage: null, intro: '', representativeId: '' });
         setPhoneParts({ p1: '010', p2: '', p3: '' }); // Reset phone parts
+        setIsPublicRoom(false); // Reset public room selection
         setSubmitting(false);
       }, 300);
     }
@@ -409,6 +428,13 @@ const ReservationSystem: React.FC<ReservationSystemProps> = ({ isOpen, onClose }
       );
     }
     if (slot.status === SlotStatus.HOST_REGISTERED) {
+      if (slot.hostTeam && !slot.hostTeam.isVerified) {
+        return (
+          <button disabled className="w-full py-3 rounded-xl font-bold text-sm bg-orange-100 text-orange-400 cursor-not-allowed flex items-center justify-center gap-2">
+            <Lock size={16} /> 호스트 승인 대기중
+          </button>
+        );
+      }
       return (
         <button onClick={() => handleSlotAction(slot)} className="w-full py-3 rounded-xl font-bold text-sm bg-brand-600 text-white hover:bg-brand-700 shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2">
           <Plus size={16} /> 매칭 신청하기 ({slot.guestTeams.length}/{slot.maxApplicants})
@@ -521,14 +547,42 @@ const ReservationSystem: React.FC<ReservationSystemProps> = ({ isOpen, onClose }
                         ) : slot.hostTeam && slot.status !== SlotStatus.CLOSED ? (
                           <div className="mb-3 p-3 bg-brand-50 rounded-xl">
                             <div className="flex items-center justify-between mb-1">
-                              <span className="text-sm font-bold text-gray-800">{slot.hostTeam.university}</span>
-                              <span className="text-xs font-bold bg-white px-2 py-0.5 rounded text-gray-500">
-                                {slot.hostTeam.gender === 'MALE' ? '남성' : '여성'} {slot.hostTeam.headCount}명
+                              <span className="text-sm font-bold text-gray-800">
+                                {slot.hostTeam.university} {slot.hostTeam.members[0]?.major}
+                              </span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold bg-white px-2 py-0.5 rounded text-gray-500">
+                                  {slot.hostTeam.gender === 'MALE' ? '남성' : '여성'} {slot.hostTeam.headCount}명
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <p className="text-xs text-gray-500">평균 나이: {slot.hostTeam.avgAge}세</p>
+                              <span className={`text-xs font-bold px-2 py-0.5 rounded ${slot.isPublicRoom ? 'bg-brand-100 text-brand-700' : 'bg-gray-200 text-gray-600'}`}>
+                                {slot.isPublicRoom ? '📸 공개방' : '🔒 비공개'}
                               </span>
                             </div>
-                            <p className="text-xs text-gray-500">평균 나이: {slot.hostTeam.avgAge}세 | 현재 {slot.guestTeams.length}팀 도전 중 🔥</p>
                             {slot.hostTeam.intro && (
                               <p className="mt-2 text-xs text-gray-700 bg-white/50 p-2 rounded italic">" {slot.hostTeam.intro} "</p>
+                            )}
+
+                            <button
+                              onClick={() => setExpandedHostSlotId(expandedHostSlotId === slot.id ? null : slot.id)}
+                              className="mt-2 text-xs text-gray-400 underline hover:text-gray-600 flex items-center gap-1"
+                            >
+                              {expandedHostSlotId === slot.id ? '멤버 정보 접기' : '멤버 상세 보기'}
+                              {expandedHostSlotId === slot.id ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                            </button>
+
+                            {expandedHostSlotId === slot.id && slot.hostTeam.members && slot.hostTeam.members.length > 0 && (
+                              <div className="pt-2 mt-1 border-t border-brand-100 transition-all">
+                                <p className="text-[10px] text-gray-400 mb-1">멤버 구성:</p>
+                                {slot.hostTeam.members.map((m, idx) => (
+                                  <div key={idx} className="flex justify-between text-[11px] text-gray-600 mb-0.5">
+                                    <span>{idx + 1}. {m.university} {m.major} ({m.age}세)</span>
+                                  </div>
+                                ))}
+                              </div>
                             )}
                           </div>
                         ) : slot.status !== SlotStatus.CLOSED ? (
@@ -593,6 +647,70 @@ const ReservationSystem: React.FC<ReservationSystemProps> = ({ isOpen, onClose }
                               <div className="text-center font-bold">여성</div>
                             </label>
                           </div>
+                        </div>
+
+                        {/* 공개방/비공개방 선택 - 호스트 등록 시에만 표시 */}
+                        {!selectedSlot?.hostTeam && (
+                          <div>
+                            <label className="block text-sm font-bold text-gray-700 mb-2">인스타그램 공개 여부</label>
+                            <div className="flex gap-4">
+                              <label className={`flex-1 p-4 rounded-xl border-2 cursor-pointer transition-all ${!isPublicRoom ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-100 hover:border-gray-200'}`}>
+                                <input type="radio" name="roomType" checked={!isPublicRoom} onChange={() => setIsPublicRoom(false)} className="hidden" />
+                                <div className="text-center">
+                                  <div className="font-bold mb-1">🔒 비공개방</div>
+                                  <div className="text-xs opacity-70">인스타 공개 없이 바로 매칭</div>
+                                </div>
+                              </label>
+                              <label className={`flex-1 p-4 rounded-xl border-2 cursor-pointer transition-all ${isPublicRoom ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-gray-100 hover:border-gray-200'}`}>
+                                <input type="radio" name="roomType" checked={isPublicRoom} onChange={() => setIsPublicRoom(true)} className="hidden" />
+                                <div className="text-center">
+                                  <div className="font-bold mb-1">📸 공개방</div>
+                                  <div className="text-xs opacity-70">인스타 사전 교환 후 매칭</div>
+                                </div>
+                              </label>
+                            </div>
+                            {isPublicRoom && (
+                              <div className="mt-3 p-3 bg-brand-50 rounded-lg text-sm text-brand-700">
+                                <p className="font-bold">📌 공개방 안내</p>
+                                <p className="text-xs mt-1">• 인당 {((selectedSlot as ExtendedMeetingSlot)?.publicRoomExtraPrice || 3000).toLocaleString()}원이 추가됩니다</p>
+                                <p className="text-xs">• 1차 매칭 시 양팀 인스타그램이 공개됩니다</p>
+                                <p className="text-xs">• 양팀 모두 "진행"을 선택해야 최종 매칭됩니다</p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* 게스트의 경우 호스트의 공개방 여부 표시 */}
+                        {selectedSlot?.hostTeam && (
+                          <div className={`p-4 rounded-xl ${selectedSlot.hostTeam.isPublicRoom ? 'bg-brand-50 border border-brand-200' : 'bg-gray-50 border border-gray-200'}`}>
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="text-lg">{selectedSlot.hostTeam.isPublicRoom ? '📸' : '🔒'}</span>
+                              <span className="font-bold text-gray-800">
+                                {selectedSlot.hostTeam.isPublicRoom ? '공개방입니다' : '비공개방입니다'}
+                              </span>
+                            </div>
+                            <p className="text-xs text-gray-600">
+                              {selectedSlot.hostTeam.isPublicRoom
+                                ? '모든 멤버의 인스타그램 ID를 입력해주세요. 1차 매칭 시 상대팀에게 공개됩니다.'
+                                : '인스타그램 공개 없이 바로 매칭됩니다.'}
+                            </p>
+                            {selectedSlot.hostTeam.isPublicRoom && (selectedSlot as ExtendedMeetingSlot).publicRoomExtraPrice && (
+                              <p className="text-xs text-brand-600 font-bold mt-1">
+                                ※ 공개방 추가비용: 인당 +{((selectedSlot as ExtendedMeetingSlot).publicRoomExtraPrice || 0).toLocaleString()}원
+                              </p>
+                            )}
+                          </div>
+                        )}
+                        <div>
+                          <label className="block text-sm font-bold text-gray-700 mb-2">대표자 아이디 <span className="text-red-500">*</span></label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="사용하실 아이디를 입력해주세요"
+                            className="w-full p-4 rounded-xl bg-white border border-gray-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-200 outline-none transition-all font-bold text-gray-900"
+                            value={formData.representativeId}
+                            onChange={(e) => setFormData(prev => ({ ...prev, representativeId: e.target.value }))}
+                          />
                         </div>
                         <div>
                           <label className="block text-sm font-bold text-gray-700 mb-2">대표자 연락처</label>
@@ -679,7 +797,26 @@ const ReservationSystem: React.FC<ReservationSystemProps> = ({ isOpen, onClose }
                               <div><label className="text-xs font-bold text-gray-500 mb-1 block">대학교</label><input type="text" placeholder="한국대" className="w-full p-3 rounded-lg border border-gray-200 focus:border-brand-500 outline-none bg-white text-gray-900" value={member.university} onChange={(e) => updateMember(idx, 'university', e.target.value)} /></div>
                             </div>
                             <div className="mb-4"><label className="text-xs font-bold text-gray-500 mb-1 block">학과</label><input type="text" placeholder="경영학과" className="w-full p-3 rounded-lg border border-gray-200 focus:border-brand-500 outline-none bg-white text-gray-900" value={member.major} onChange={(e) => updateMember(idx, 'major', e.target.value)} /></div>
-                            <div><label className="text-xs font-bold text-gray-500 mb-1 flex items-center gap-1"><Instagram size={12} /> 인스타그램 ID (선택)</label><input type="text" placeholder="@insta_id" className="w-full p-3 rounded-lg border border-gray-200 focus:border-brand-500 outline-none bg-white text-gray-900" value={member.instagramId} onChange={(e) => updateMember(idx, 'instagramId', e.target.value)} /></div>
+                            <div>
+                              {(() => {
+                                const requireInstagram = selectedSlot?.hostTeam ? selectedSlot.hostTeam.isPublicRoom : isPublicRoom;
+                                return (
+                                  <>
+                                    <label className={`text-xs font-bold mb-1 flex items-center gap-1 ${requireInstagram ? 'text-brand-600' : 'text-gray-500'}`}>
+                                      <Instagram size={12} /> 인스타그램 ID {requireInstagram ? <span className="text-red-500">*</span> : '(선택)'}
+                                    </label>
+                                    <input
+                                      type="text"
+                                      placeholder="@insta_id"
+                                      required={requireInstagram}
+                                      className={`w-full p-3 rounded-lg border focus:outline-none bg-white text-gray-900 ${requireInstagram ? 'border-brand-300 focus:border-brand-500' : 'border-gray-200 focus:border-brand-500'}`}
+                                      value={member.instagramId}
+                                      onChange={(e) => updateMember(idx, 'instagramId', e.target.value)}
+                                    />
+                                  </>
+                                );
+                              })()}
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -690,6 +827,31 @@ const ReservationSystem: React.FC<ReservationSystemProps> = ({ isOpen, onClose }
                       {selectedSlot?.hostTeam ? '매칭 도전하기' : '호스트로 등록하기'}
                     </button>
                   </form>
+                </motion.div>
+              )}
+
+              {view === 'CONFIRM' && (
+                <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center justify-center h-full p-8 text-center">
+                  <div className="w-24 h-24 bg-red-100 rounded-full flex items-center justify-center mb-6 text-red-600"><Info size={48} /></div>
+                  <h3 className="text-2xl font-black text-gray-900 mb-4">잠깐! 확인해주세요</h3>
+                  <div className="bg-gray-50 p-6 rounded-2xl mb-8 text-left space-y-3">
+                    <p className="flex items-start gap-2 text-gray-700">
+                      <CheckCircle2 className="w-5 h-5 text-red-500 shrink-0" />
+                      <span><span className="font-bold">한번 등록된 정보는 수정이 어렵습니다.</span><br /><span className="text-sm text-gray-500">신중하게 작성해주셨나요?</span></span>
+                    </p>
+                    <p className="flex items-start gap-2 text-gray-700">
+                      <CheckCircle2 className="w-5 h-5 text-red-500 shrink-0" />
+                      <span><span className="font-bold">등록 취소는 카카오톡 채널로 문의해야 합니다.</span><br /><span className="text-sm text-gray-500">본 사이트에서는 취소가 불가능합니다.</span></span>
+                    </p>
+                  </div>
+                  <div className="flex gap-3 w-full max-w-sm">
+                    <button onClick={() => setView('FORM')} className="flex-1 py-4 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-colors">
+                      다시 확인하기
+                    </button>
+                    <button onClick={handleFinalSubmit} disabled={submitting} className="flex-1 py-4 bg-gray-900 text-white font-bold rounded-xl hover:bg-gray-800 transition-colors flex items-center justify-center gap-2">
+                      {submitting ? <Loader2 className="animate-spin" /> : '네, 등록합니다'}
+                    </button>
+                  </div>
                 </motion.div>
               )}
 

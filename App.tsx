@@ -9,6 +9,7 @@ import Footer from './components/Footer';
 import ReservationSystem from './components/ReservationSystem';
 import DetailModal from './components/DetailModal';
 import AdminDashboard from './components/AdminDashboard';
+import KakaoChannelWidget from './components/KakaoChannelWidget';
 import { DetailTab } from './types';
 
 const App: React.FC = () => {
@@ -46,6 +47,8 @@ const App: React.FC = () => {
         onCtaClick={openReservation}
         onAdminTrigger={() => setIsAdminOpen(true)}
       />
+
+      <KakaoChannelWidget />
 
       {!isLandingOnly && (
         <ReservationSystem

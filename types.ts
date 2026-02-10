@@ -19,6 +19,9 @@ export interface MeetingSlot {
 
 export interface TeamInfo {
   id: string;
+  date?: string; // YYYY-MM-DD
+  time?: string; // HH:MM
+  role?: 'HOST' | 'GUEST';
   gender: 'MALE' | 'FEMALE';
   headCount: number;
   avgAge: number;
@@ -30,13 +33,17 @@ export interface TeamInfo {
   createdAt: string;
   status?: string;
   intro?: string;
+  representativeId?: string;
   // 정보 교환 프로세스 관련 필드
-  wantsInfo?: boolean | null;      // 상대팀 정보 열람 희망 여부
-  sharesInfo?: boolean | null;     // 본인팀 정보 공개 여부
-  hasPaid?: boolean;               // 결제 완료 여부
-  hasConfirmed?: boolean | null;   // 정보 확인 후 진행 의사 (true=진행, false=취소, null=미응답)
-  // 프로세스 단계: 'SETTING' | 'WAITING_PAYMENT' | 'WAITING_CONFIRM' | 'WAITING_OTHER' | 'COMPLETED' | 'CANCELLED'
+  wantsInfo?: boolean | null;      // 상대팀 정보 열람 희망 여부 (deprecated)
+  sharesInfo?: boolean | null;     // 본인팀 정보 공개 여부 (deprecated)
+  hasPaid?: boolean;               // 결제 완료 여부 (deprecated)
+  hasConfirmed?: boolean | null;   // 정보 확인 후 진행 의사 (deprecated)
+  // 프로세스 단계 (deprecated)
   processStep?: string | null;
+  // 새로운 공개방/비공개방 시스템
+  isPublicRoom?: boolean;          // 공개방 여부 (호스트만 설정)
+  infoExchangeStatus?: 'PENDING' | 'PROCEED' | 'STOP' | null; // 공개방 응답 상태
 }
 
 export interface TeamMember {
@@ -52,6 +59,7 @@ export interface ReservationFormData {
   members: TeamMember[];
   studentIdImage: File | null;
   intro: string;
+  representativeId: string;
 }
 
 export type DetailTab = 'SERVICE' | 'PROCESS' | 'SPACE';
@@ -61,4 +69,5 @@ export interface DailySlotConfig {
   date: string;              // Primary key: YYYY-MM-DD
   open_times: string[];      // 활성화된 시간 목록 예: ["18:00", "19:00", "20:00"]
   max_applicants: number;    // 해당 날짜 기본 max_applicants
+  public_room_extra_price?: number; // 공개방 인당 추가금액 (기본 3000원)
 }
