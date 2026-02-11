@@ -16,39 +16,57 @@ const SOLAPI_SENDER = import.meta.env.VITE_SOLAPI_SENDER || '';
 // 테스트 모드 확인
 const IS_TEST_MODE = !SOLAPI_API_KEY || SOLAPI_API_KEY === 'your_api_key_here' || !SOLAPI_API_SECRET || SOLAPI_API_SECRET === 'your_api_secret_here';
 
+// 런타임 템플릿 ID 검증 함수
+const getTemplateId = (key: string, value: string | undefined, defaultValue: string) => {
+    const id = value || defaultValue;
+    // 프로덕션 환경(localhost가 아니고 테스트 모드가 아닐 때)에서 템플릿 ID가 없거나 placeholder인 경우 경고
+    if (!IS_TEST_MODE &&
+        typeof window !== 'undefined' &&
+        !window.location.hostname.includes('localhost') &&
+        (!id || id.startsWith('template_') || id.includes('placeholder'))) {
+        console.warn(`⚠️ [Solapi Service] Potential Invalid Template ID for ${key}: ${id}. Check templates.json or Vercel env vars.`);
+    }
+    return id;
+};
+
 // 알림톡 템플릿 ID (mutable for DB override)
 export let TEMPLATES = {
     // 01~03: 예약/등록 단계
-    HOST_REGISTERED: templateIds.HOST_REGISTERED || 'template_01',
-    GUEST_APPLIED: templateIds.GUEST_APPLIED || 'template_02',
-    HOST_NEW_APPLICANT: templateIds.HOST_NEW_APPLICANT || 'template_03',
+    HOST_REGISTERED: getTemplateId('HOST_REGISTERED', templateIds.HOST_REGISTERED, 'template_01'),
+    GUEST_APPLIED: getTemplateId('GUEST_APPLIED', templateIds.GUEST_APPLIED, 'template_02'),
+    HOST_NEW_APPLICANT: getTemplateId('HOST_NEW_APPLICANT', templateIds.HOST_NEW_APPLICANT, 'template_03'),
+
     // 04~05: 1차 매칭 단계
-    FIRST_MATCH_COMPLETE: templateIds.FIRST_MATCH_COMPLETE || 'template_04',
-    NOT_SELECTED: templateIds.NOT_SELECTED || 'template_05',
+    FIRST_MATCH_COMPLETE: getTemplateId('FIRST_MATCH_COMPLETE', templateIds.FIRST_MATCH_COMPLETE, 'template_04'),
+    NOT_SELECTED: getTemplateId('NOT_SELECTED', templateIds.NOT_SELECTED, 'template_05'),
+
     // 06~09: 정보 교환 단계
-    PAYMENT_REQUEST: templateIds.PAYMENT_REQUEST || 'template_06',
-    INFO_DELIVERED: templateIds.INFO_DELIVERED || 'template_07',
-    INFO_DENIED_CONTINUE: templateIds.INFO_DENIED_CONTINUE || 'template_08',
-    WAIT_OTHER_TEAM: templateIds.WAIT_OTHER_TEAM || 'template_09',
+    PAYMENT_REQUEST: getTemplateId('PAYMENT_REQUEST', templateIds.PAYMENT_REQUEST, 'template_06'),
+    INFO_DELIVERED: getTemplateId('INFO_DELIVERED', templateIds.INFO_DELIVERED, 'template_07'),
+    INFO_DENIED_CONTINUE: getTemplateId('INFO_DENIED_CONTINUE', templateIds.INFO_DENIED_CONTINUE, 'template_08'),
+    WAIT_OTHER_TEAM: getTemplateId('WAIT_OTHER_TEAM', templateIds.WAIT_OTHER_TEAM, 'template_09'),
+
     // 10~11: 최종 매칭 단계
-    FINAL_PAYMENT_REQUEST: templateIds.FINAL_PAYMENT_REQUEST || 'template_10',
-    FINAL_MATCH_COMPLETE: templateIds.FINAL_MATCH_COMPLETE || 'template_11',
+    FINAL_PAYMENT_REQUEST: getTemplateId('FINAL_PAYMENT_REQUEST', templateIds.FINAL_PAYMENT_REQUEST, 'template_10'),
+    FINAL_MATCH_COMPLETE: getTemplateId('FINAL_MATCH_COMPLETE', templateIds.FINAL_MATCH_COMPLETE, 'template_11'),
+
     // 12~17: 취소 단계
-    PROCESS_CANCELLED: templateIds.PROCESS_CANCELLED || 'template_12',
-    HOST_CANCELLED_ALL: templateIds.HOST_CANCELLED_ALL || 'template_13',
-    GUEST_CANCELLED_AFTER_FIRST: templateIds.GUEST_CANCELLED_AFTER_FIRST || 'template_14',
-    GUEST_CANCELLED_HOST_NOTIFY: templateIds.GUEST_CANCELLED_HOST_NOTIFY || 'template_15',
-    GUEST_CANCELLED_BEFORE_FIRST: templateIds.GUEST_CANCELLED_BEFORE_FIRST || 'template_16',
-    GUEST_CANCELLED_BEFORE_HOST_NOTIFY: templateIds.GUEST_CANCELLED_BEFORE_HOST_NOTIFY || 'template_17',
+    PROCESS_CANCELLED: getTemplateId('PROCESS_CANCELLED', templateIds.PROCESS_CANCELLED, 'template_12'),
+    HOST_CANCELLED_ALL: getTemplateId('HOST_CANCELLED_ALL', templateIds.HOST_CANCELLED_ALL, 'template_13'),
+    GUEST_CANCELLED_AFTER_FIRST: getTemplateId('GUEST_CANCELLED_AFTER_FIRST', templateIds.GUEST_CANCELLED_AFTER_FIRST, 'template_14'),
+    GUEST_CANCELLED_HOST_NOTIFY: getTemplateId('GUEST_CANCELLED_HOST_NOTIFY', templateIds.GUEST_CANCELLED_HOST_NOTIFY, 'template_15'),
+    GUEST_CANCELLED_BEFORE_FIRST: getTemplateId('GUEST_CANCELLED_BEFORE_FIRST', templateIds.GUEST_CANCELLED_BEFORE_FIRST, 'template_16'),
+    GUEST_CANCELLED_BEFORE_HOST_NOTIFY: getTemplateId('GUEST_CANCELLED_BEFORE_HOST_NOTIFY', templateIds.GUEST_CANCELLED_BEFORE_HOST_NOTIFY, 'template_17'),
+
     // 18~19: 추가 알림
-    REFUND_GUIDE: templateIds.REFUND_GUIDE || 'template_18',
-    MATCH_REMINDER: templateIds.MATCH_REMINDER || 'template_19',
+    REFUND_GUIDE: getTemplateId('REFUND_GUIDE', templateIds.REFUND_GUIDE, 'template_18'),
+    MATCH_REMINDER: getTemplateId('MATCH_REMINDER', templateIds.MATCH_REMINDER, 'template_19'),
 
     // Additional templates from JSON not previously in TEMPLATES
-    PUBLIC_ROOM_FIRST_MATCH: templateIds.PUBLIC_ROOM_FIRST_MATCH || '',
-    STUDENT_ID_REJECTED: templateIds.STUDENT_ID_REJECTED || '',
-    NO_REFUND_NOTICE: templateIds.NO_REFUND_NOTICE || '',
-    DECISION_TIME: templateIds.DECISION_TIME || '',
+    PUBLIC_ROOM_FIRST_MATCH: getTemplateId('PUBLIC_ROOM_FIRST_MATCH', templateIds.PUBLIC_ROOM_FIRST_MATCH, ''),
+    STUDENT_ID_REJECTED: getTemplateId('STUDENT_ID_REJECTED', templateIds.STUDENT_ID_REJECTED, ''),
+    NO_REFUND_NOTICE: getTemplateId('NO_REFUND_NOTICE', templateIds.NO_REFUND_NOTICE, ''),
+    DECISION_TIME: getTemplateId('DECISION_TIME', templateIds.DECISION_TIME, ''),
 };
 
 // Runtime update function for templates
