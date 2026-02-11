@@ -60,16 +60,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // HMAC-SHA256 인증
     const crypto = await import('crypto');
-    const date = new Date().toISOString();
-    const salt = crypto.randomBytes(32).toString('hex');
-    const signature = crypto.createHmac('sha256', config.apiSecret)
-        .update(date + salt)
-        .digest('hex');
 
-    const authHeader = `HMAC-SHA256 apiKey=${config.apiKey}, date=${date}, salt=${salt}, signature=${signature}`;
-    const commonHeaders = {
-        'Content-Type': 'application/json',
-        'Authorization': authHeader,
+    const getHeaders = () => {
+        const date = new Date().toISOString();
+        const salt = crypto.randomBytes(32).toString('hex');
+        const signature = crypto.createHmac('sha256', config.apiSecret)
+            .update(date + salt)
+            .digest('hex');
+
+        return {
+            'Content-Type': 'application/json',
+            'Authorization': `HMAC-SHA256 apiKey=${config.apiKey}, date=${date}, salt=${salt}, signature=${signature}`
+        };
     };
 
     const messageObj = {
@@ -90,7 +92,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             // 1. 그룹 생성
             const createGroupRes = await fetch('https://api.solapi.com/messages/v4/groups', {
                 method: 'POST',
-                headers: commonHeaders,
+                headers: getHeaders(),
                 body: JSON.stringify({}),
             });
             if (!createGroupRes.ok) throw new Error(`그룹 생성 실패: ${createGroupRes.statusText}`);
@@ -100,7 +102,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             // 2. 메시지 추가
             const addMsgRes = await fetch(`https://api.solapi.com/messages/v4/groups/${groupId}/messages`, {
                 method: 'PUT',
-                headers: commonHeaders,
+                headers: getHeaders(),
                 body: JSON.stringify({ messages: [messageObj] }),
             });
             if (!addMsgRes.ok) throw new Error(`메시지 추가 실패: ${addMsgRes.statusText}`);
@@ -108,7 +110,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             // 3. 예약 설정
             const scheduleRes = await fetch(`https://api.solapi.com/messages/v4/groups/${groupId}/schedule`, {
                 method: 'POST',
-                headers: commonHeaders,
+                headers: getHeaders(),
                 body: JSON.stringify({ scheduledDate: scheduledTime }),
             });
 
@@ -124,7 +126,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             // 즉시 발송: Simple API
             const response = await fetch('https://api.solapi.com/messages/v4/send', {
                 method: 'POST',
-                headers: commonHeaders,
+                headers: getHeaders(),
                 body: JSON.stringify({ message: messageObj }),
             });
 

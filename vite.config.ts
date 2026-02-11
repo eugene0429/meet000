@@ -239,16 +239,18 @@ export default defineConfig(({ mode }) => {
 
                   // 실제 발송 모드 - HMAC-SHA256 인증
                   const crypto = await import('crypto');
-                  const date = new Date().toISOString();
-                  const salt = crypto.randomBytes(32).toString('hex');
-                  const signature = crypto.createHmac('sha256', apiSecret)
-                    .update(date + salt)
-                    .digest('hex');
 
-                  const authHeader = `HMAC-SHA256 apiKey=${apiKey}, date=${date}, salt=${salt}, signature=${signature}`;
-                  const commonHeaders = {
-                    'Content-Type': 'application/json',
-                    'Authorization': authHeader,
+                  const getHeaders = () => {
+                    const date = new Date().toISOString();
+                    const salt = crypto.randomBytes(32).toString('hex');
+                    const signature = crypto.createHmac('sha256', apiSecret)
+                      .update(date + salt)
+                      .digest('hex');
+
+                    return {
+                      'Content-Type': 'application/json',
+                      'Authorization': `HMAC-SHA256 apiKey=${apiKey}, date=${date}, salt=${salt}, signature=${signature}`
+                    };
                   };
 
                   const messageObj = {
@@ -266,7 +268,7 @@ export default defineConfig(({ mode }) => {
                     console.log(`🗓️ 예약 발송 시도: ${scheduledTime}`);
                     const createGroupRes = await fetch('https://api.solapi.com/messages/v4/groups', {
                       method: 'POST',
-                      headers: commonHeaders,
+                      headers: getHeaders(),
                       body: JSON.stringify({}),
                     });
                     if (!createGroupRes.ok) throw new Error(`그룹 생성 실패: ${createGroupRes.statusText}`);
@@ -275,14 +277,14 @@ export default defineConfig(({ mode }) => {
 
                     const addMsgRes = await fetch(`https://api.solapi.com/messages/v4/groups/${groupId}/messages`, {
                       method: 'PUT',
-                      headers: commonHeaders,
+                      headers: getHeaders(),
                       body: JSON.stringify({ messages: [messageObj] }),
                     });
                     if (!addMsgRes.ok) throw new Error(`메시지 추가 실패: ${addMsgRes.statusText}`);
 
                     const scheduleRes = await fetch(`https://api.solapi.com/messages/v4/groups/${groupId}/schedule`, {
                       method: 'POST',
-                      headers: commonHeaders,
+                      headers: getHeaders(),
                       body: JSON.stringify({ scheduledDate: scheduledTime }),
                     });
                     if (!scheduleRes.ok) {
@@ -297,7 +299,7 @@ export default defineConfig(({ mode }) => {
                     // 즉시 발송
                     const response = await fetch('https://api.solapi.com/messages/v4/send', {
                       method: 'POST',
-                      headers: commonHeaders,
+                      headers: getHeaders(),
                       body: JSON.stringify({ message: messageObj }),
                     });
 

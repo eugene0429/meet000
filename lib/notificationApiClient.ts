@@ -15,6 +15,8 @@ interface NotificationResult {
 // ✅ JSON 파일에서 템플릿 ID 로드
 import templateIds from '../templates/templates.json';
 
+console.log('Loaded Template IDs:', templateIds);
+
 // 알림톡 템플릿 ID (환경변수에서 로드 -> JSON 파일 사용)
 export const TEMPLATES = {
     // 01~03: 예약/등록 단계
