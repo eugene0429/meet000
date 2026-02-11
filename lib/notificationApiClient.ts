@@ -12,42 +12,44 @@ interface NotificationResult {
     error?: string;
 }
 
-// ✅ JSON 파일에서 템플릿 ID 로드
-import templateIds from '../templates/templates.json';
-
-console.log('Loaded Template IDs:', templateIds);
-
-// 알림톡 템플릿 ID (환경변수에서 로드 -> JSON 파일 사용)
+// ✅ 템플릿 ID 하드코딩 (배포 환경 JSON 로딩 이슈 방지)
 export const TEMPLATES = {
     // 01~03: 예약/등록 단계
-    HOST_REGISTERED: templateIds.HOST_REGISTERED || 'template_01',
-    GUEST_APPLIED: templateIds.GUEST_APPLIED || 'template_02',
-    HOST_NEW_APPLICANT: templateIds.HOST_NEW_APPLICANT || 'template_03',
+    HOST_REGISTERED: 'KA01TP260205121622835SdhrNAmQjD9', // template_01
+    GUEST_APPLIED: 'KA01TP2602051219035259JoyIRCbUZk', // template_02
+    HOST_NEW_APPLICANT: 'KA01TP260205122411681cgxZpajPFnB', // template_03
+
     // 04~05: 1차 매칭 단계
-    FIRST_MATCH_COMPLETE: templateIds.FIRST_MATCH_COMPLETE || 'template_04',
-    PUBLIC_ROOM_FIRST_MATCH: templateIds.PUBLIC_ROOM_FIRST_MATCH || 'template_04_public',  // 공개방 전용
-    NOT_SELECTED: templateIds.NOT_SELECTED || 'template_05',
-    // 06~09: 정보 교환 단계 (비공개방 전용, 공개방에서는 사용 안함)
-    PAYMENT_REQUEST: templateIds.PAYMENT_REQUEST || 'template_06',
-    INFO_DELIVERED: templateIds.INFO_DELIVERED || 'template_07',
-    INFO_DENIED_CONTINUE: templateIds.INFO_DENIED_CONTINUE || 'template_08',
-    WAIT_OTHER_TEAM: templateIds.WAIT_OTHER_TEAM || 'template_09',
+    FIRST_MATCH_COMPLETE: 'template_id_first_match_complete',
+    PUBLIC_ROOM_FIRST_MATCH: 'template_id_public_room_first_match',
+    NOT_SELECTED: 'KA01TP260205123430718vrcZz3nVRxn',
+
+    // 06~09: 정보 교환 단계
+    PAYMENT_REQUEST: 'template_id_payment_request',
+    INFO_DELIVERED: 'template_id_info_delivered',
+    INFO_DENIED_CONTINUE: 'template_id_info_denied_continue',
+    WAIT_OTHER_TEAM: 'template_id_wait_other_team',
+
     // 10~11: 최종 매칭 단계
-    FINAL_PAYMENT_REQUEST: templateIds.FINAL_PAYMENT_REQUEST || 'template_10',
-    FINAL_MATCH_COMPLETE: templateIds.FINAL_MATCH_COMPLETE || 'template_11',
+    FINAL_PAYMENT_REQUEST: 'KA01TP260205125155326kniFNsFqF0X',
+    FINAL_MATCH_COMPLETE: 'KA01TP260205125605522sxe38scKItk',
+
     // 12~17: 취소 단계
-    PROCESS_CANCELLED: templateIds.PROCESS_CANCELLED || 'template_12',
-    HOST_CANCELLED_ALL: templateIds.HOST_CANCELLED_ALL || 'template_13',
-    GUEST_CANCELLED_AFTER_FIRST: templateIds.GUEST_CANCELLED_AFTER_FIRST || 'template_14',
-    GUEST_CANCELLED_HOST_NOTIFY: templateIds.GUEST_CANCELLED_HOST_NOTIFY || 'template_15',
-    GUEST_CANCELLED_BEFORE_FIRST: templateIds.GUEST_CANCELLED_BEFORE_FIRST || 'template_16',
-    GUEST_CANCELLED_BEFORE_HOST_NOTIFY: templateIds.GUEST_CANCELLED_BEFORE_HOST_NOTIFY || 'template_17',
-    STUDENT_ID_REJECTED: templateIds.STUDENT_ID_REJECTED || 'template_21',
-    REFUND_GUIDE: templateIds.REFUND_GUIDE || 'template_18',
-    NO_REFUND_NOTICE: templateIds.NO_REFUND_NOTICE || 'template_19',
-    MATCH_REMINDER: templateIds.MATCH_REMINDER || 'template_20',
+    PROCESS_CANCELLED: 'template_id_process_cancelled',
+    HOST_CANCELLED_ALL: 'template_id_host_cancelled_all',
+    GUEST_CANCELLED_AFTER_FIRST: 'template_id_guest_cancelled_after_first',
+    GUEST_CANCELLED_HOST_NOTIFY: 'template_id_guest_cancelled_host_notify',
+    GUEST_CANCELLED_BEFORE_FIRST: 'KA01TP260205130143472wcOZ3TRJrXH',
+    GUEST_CANCELLED_BEFORE_HOST_NOTIFY: 'KA01TP260205132335506AI9gaUZmhtf',
+
+    // 18~19: 추가 알림
+    REFUND_GUIDE: 'KA01TP260205132504827NMVOoXngPL4',
+    NO_REFUND_NOTICE: 'KA01TP260205132558755knWzJj1U9VP',
+    MATCH_REMINDER: 'KA01TP260205132709880JObhynrFvDV', // template_20 (D-1)
+    STUDENT_ID_REJECTED: 'KA01TP260205133627591qRDjVgE6Krp', // template_21
+
     // 22: 선택 시간 안내
-    DECISION_TIME: templateIds.DECISION_TIME || 'template_22',
+    DECISION_TIME: 'template_id_decision_time',
 };
 
 // ... (omitted sendNotification)
