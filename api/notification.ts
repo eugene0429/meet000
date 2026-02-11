@@ -61,19 +61,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // HMAC-SHA256 인증
     const crypto = await import('crypto');
 
-    const getHeaders = () => {
-        const date = new Date().toISOString();
-        const salt = crypto.randomBytes(32).toString('hex');
-        const signature = crypto.createHmac('sha256', config.apiSecret)
-            .update(date + salt)
-            .digest('hex');
-
-        return {
-            'Content-Type': 'application/json',
-            'Authorization': `HMAC-SHA256 apiKey=${config.apiKey}, date=${date}, salt=${salt}, signature=${signature}`
-        };
-    };
-
     const messageObj = {
         to: normalizedPhone,
         from: config.sender,
@@ -85,6 +72,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     };
 
     try {
+        const getHeaders = () => {
+            const date = new Date().toISOString();
+            const salt = crypto.randomBytes(32).toString('hex');
+            const signature = crypto.createHmac('sha256', config.apiSecret)
+                .update(date + salt)
+                .digest('hex');
+
+            return {
+                'Content-Type': 'application/json',
+                'Authorization': `HMAC-SHA256 apiKey=${config.apiKey}, date=${date}, salt=${salt}, signature=${signature}`
+            };
+        };
         if (scheduledTime) {
             // 예약 발송: 그룹 API 사용
             console.log(`🗓️ 예약 발송 시도: ${scheduledTime}`);
